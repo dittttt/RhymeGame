@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { beats as BEAT_POOL } from "@/lib/game-data";
+import { computeRoundDeltas, DEFAULT_ELO } from "@/lib/elo";
 
 /* ─────── Types ─────── */
 type Lobby = {
@@ -201,6 +202,9 @@ export function LobbyRoom({
 
   async function startRound() {
     if (!isHost) return;
+    // race guard: many clients may dispatch this simultaneously via realtime echo
+    if (lobby.status !== "waiting") return;
+    if (busy) return;
     setBusy(true);
     try {
       // tally genre votes
@@ -283,23 +287,25 @@ export function LobbyRoom({
         }));
         if (matchPlayers.length > 0) await supabase.from("match_players").insert(matchPlayers);
 
-        // placeholder elo: +20 winner, -5 others
-        const eloRows = players.map((p) => {
-          const before = p.profiles?.elo ?? 1000;
-          const delta = p.user_id === winnerId ? 20 : -5;
-          return {
-            user_id: p.user_id,
+        // Real Elo math — ranked only. Casual mode records the match but
+        // skips ledger writes so casual play doesn't move ratings.
+        if (lobby.mode === "ranked" && players.length >= 2) {
+          const deltas = computeRoundDeltas(
+            players.map((p) => ({ userId: p.user_id, elo: p.profiles?.elo ?? DEFAULT_ELO })),
+            winnerId,
+          );
+          const eloRows = deltas.map((d) => ({
+            user_id: d.userId,
             match_id: matchRow.id,
-            elo_before: before,
-            elo_after: before + delta,
-            delta,
-          };
-        });
-        if (eloRows.length > 0) {
-          await supabase.from("elo_history").insert(eloRows);
-          // update profile elo
-          for (const r of eloRows) {
-            await supabase.from("profiles").update({ elo: r.elo_after }).eq("id", r.user_id);
+            elo_before: d.eloBefore,
+            elo_after: d.eloAfter,
+            delta: d.delta,
+          }));
+          if (eloRows.length > 0) {
+            await supabase.from("elo_history").insert(eloRows);
+            for (const r of eloRows) {
+              await supabase.from("profiles").update({ elo: r.elo_after }).eq("id", r.user_id);
+            }
           }
         }
       }
