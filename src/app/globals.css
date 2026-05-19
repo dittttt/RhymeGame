@@ -76,35 +76,33 @@ textarea {
   box-shadow: 0 0 0 3px rgb(251 146 60 / 0.18);
 }
 
-/* Custom-styled <select> that fits the glass UI. Removes native chevron
-   and paints our own gradient arrow so it matches the orange/fuchsia theme. */
+/* Modern pill-shaped select — full rounded, soft gradient border, custom caret. */
 select.input {
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
-  padding-right: 2.4rem;
+  border-radius: 999px;
+  padding: 0.7rem 2.6rem 0.7rem 1.1rem;
   background-image:
-    linear-gradient(135deg, transparent 50%, #fb923c 50%),
-    linear-gradient(45deg, #d946ef 50%, transparent 50%);
-  background-position:
-    calc(100% - 1.15rem) 50%,
-    calc(100% - 0.7rem) 50%;
-  background-size:
-    6px 6px,
-    6px 6px;
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'><path d='M1 1.5L6 6.5L11 1.5' stroke='%23fb923c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  background-position: calc(100% - 1rem) 50%;
   background-repeat: no-repeat;
-  background-color: rgb(255 255 255 / 0.04);
+  background-color: rgb(255 255 255 / 0.05);
   cursor: pointer;
   font-weight: 500;
+  border: 1px solid rgb(255 255 255 / 0.10);
+  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
 }
 
 select.input:hover {
-  background-color: rgb(255 255 255 / 0.07);
-  border-color: rgb(255 255 255 / 0.18);
+  background-color: rgb(255 255 255 / 0.08);
+  border-color: rgb(251 146 60 / 0.45);
 }
 
 select.input:focus {
-  background-color: rgb(255 255 255 / 0.08);
+  background-color: rgb(255 255 255 / 0.10);
+  border-color: rgb(251 146 60 / 0.75);
+  box-shadow: 0 0 0 4px rgb(251 146 60 / 0.15);
 }
 
 .input option {
@@ -185,6 +183,25 @@ select.input:focus {
   background: rgb(251 146 60 / 0.18);
   border-color: rgb(251 146 60 / 0.45);
   color: #fed7aa;
+}
+
+.chip-button {
+  cursor: pointer;
+  padding: 0.5rem 0.95rem;
+  font-size: 0.78rem;
+  background: rgb(255 255 255 / 0.05);
+  border: 1px solid rgb(255 255 255 / 0.10);
+  color: rgb(255 255 255 / 0.85);
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 600;
+  transition: transform 140ms ease, background 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+.chip-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: linear-gradient(135deg, rgb(251 146 60 / 0.22), rgb(217 70 239 / 0.22));
+  border-color: rgb(251 146 60 / 0.55);
+  color: white;
 }
 
 @keyframes pulse-ring {

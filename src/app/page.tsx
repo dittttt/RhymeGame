@@ -9,16 +9,12 @@ import {
   Play,
   RotateCcw,
   Search,
-  Shuffle,
   SkipForward,
   Sparkles,
   Users,
 } from "lucide-react";
 import {
-  beats,
   defaultRoundSeconds,
-  getGenres,
-  getStyles,
   rhymeModes,
   rhymeWords,
   shuffle,
@@ -26,37 +22,32 @@ import {
   type RhymeMode,
   type RhymeWord,
 } from "@/lib/game-data";
-import {
-  defaultFilters,
-  filterBeats,
-  type BeatFilters,
-} from "@/lib/beat-filtering";
 import { getBeatClock, secondsPerBeat, VISIBLE_BARS } from "@/lib/beat-clock";
 import { useYouTubePlayer } from "@/lib/use-youtube-player";
 import { WORDLISTS, type WordlistId, getWordlist } from "@/lib/wordlists";
 import { RHYME_PATTERNS, type RhymePattern } from "@/lib/rhyme-patterns";
 
-const RAP_GENRE_CHIPS: { label: string; query: string }[] = [
-  { label: "Trap", query: "trap type beat 140 bpm 4/4" },
-  { label: "Boom Bap", query: "boom bap type beat 90 bpm 4/4" },
-  { label: "Old School", query: "old school hip hop type beat 95 bpm 4/4" },
-  { label: "Dreamville", query: "dreamville type beat 85 bpm 4/4" },
-  { label: "Drill", query: "drill type beat 140 bpm 4/4" },
-  { label: "UK Drill", query: "uk drill type beat 140 bpm 4/4" },
-  { label: "Lo-Fi Hip Hop", query: "lofi hip hop type beat 85 bpm 4/4" },
-  { label: "Jazz Rap", query: "jazz rap type beat 90 bpm 4/4" },
-  { label: "Conscious", query: "conscious rap type beat 88 bpm 4/4" },
-  { label: "G-Funk", query: "g funk type beat 95 bpm 4/4" },
-  { label: "West Coast", query: "west coast type beat 92 bpm 4/4" },
-  { label: "East Coast", query: "east coast boom bap type beat 90 bpm 4/4" },
-  { label: "Memphis", query: "memphis rap type beat 70 bpm 4/4" },
-  { label: "Phonk", query: "phonk type beat 130 bpm 4/4" },
-  { label: "Cloud Rap", query: "cloud rap type beat 75 bpm 4/4" },
-  { label: "Rage", query: "rage type beat 160 bpm 4/4" },
-  { label: "Hyperpop Rap", query: "hyperpop rap type beat 160 bpm 4/4" },
-  { label: "Plugg", query: "plugg type beat 140 bpm 4/4" },
-  { label: "Soul Sample", query: "soul sample type beat 88 bpm 4/4" },
-  { label: "Afro Trap", query: "afro trap type beat 100 bpm 4/4" },
+const RAP_GENRE_CHIPS: string[] = [
+  "Trap",
+  "Boom Bap",
+  "Old School",
+  "Dreamville",
+  "Drill",
+  "UK Drill",
+  "Lo-Fi Hip Hop",
+  "Jazz Rap",
+  "Conscious",
+  "G-Funk",
+  "West Coast",
+  "East Coast",
+  "Memphis",
+  "Phonk",
+  "Cloud Rap",
+  "Rage",
+  "Hyperpop Rap",
+  "Plugg",
+  "Soul Sample",
+  "Afro Trap",
 ];
 
 type Stage = "picker" | "play";
@@ -77,7 +68,6 @@ type SearchResult = {
 
 export default function Home() {
   const [stage, setStage] = useState<Stage>("picker");
-  const [filters, setFilters] = useState<BeatFilters>(defaultFilters);
   const [selectedBeat, setSelectedBeat] = useState<Beat | null>(null);
   const [mode, setMode] = useState<RhymeMode>(rhymeModes[0]);
   const [difficulty, setDifficulty] =
@@ -86,33 +76,12 @@ export default function Home() {
   const [numPlayers, setNumPlayers] = useState<number>(2);
   const [wordlistId, setWordlistId] = useState<WordlistId>("basic");
   const [rhymePattern, setRhymePattern] = useState<RhymePattern>("AABB");
-  const [youtubeQuery, setYoutubeQuery] = useState(
-    "boom bap freestyle type beat",
-  );
+  const [youtubeQuery, setYoutubeQuery] = useState("");
   const [youtubeResults, setYoutubeResults] = useState<SearchResult[]>([]);
   const [searchStatus, setSearchStatus] = useState(
-    "Curated local beats below. Add YOUTUBE_API_KEY for live YouTube search.",
+    "Search YouTube or tap a genre to load type beats.",
   );
   const [searching, setSearching] = useState(false);
-
-  const filteredBeats = useMemo(
-    () => filterBeats(beats, filters),
-    [filters],
-  );
-  const genres = getGenres();
-  const styles = getStyles();
-
-  function updateFilter<K extends keyof BeatFilters>(
-    key: K,
-    value: BeatFilters[K],
-  ) {
-    setFilters((current) => ({ ...current, [key]: value }));
-  }
-
-  function pickRandomBeat() {
-    const pool = filteredBeats.length ? filteredBeats : beats;
-    setSelectedBeat(pool[Math.floor(Math.random() * pool.length)]);
-  }
 
   async function searchYouTube(overrideQuery?: string) {
     const q = (overrideQuery ?? youtubeQuery).trim();
@@ -140,13 +109,9 @@ export default function Home() {
   }
 
   function selectYouTubeResult(result: SearchResult) {
-    const parsedBpm =
-      result.bpm ?? Math.round((filters.minBpm + filters.maxBpm) / 2);
-    const parsedTimeSignature =
-      result.timeSignature ??
-      (filters.timeSignature === "any"
-        ? "4/4"
-        : (filters.timeSignature as Beat["timeSignature"]));
+    const parsedBpm = result.bpm ?? 90;
+    const parsedTimeSignature: Beat["timeSignature"] =
+      result.timeSignature ?? "4/4";
 
     setSelectedBeat({
       id: result.youtubeVideoId,
@@ -154,8 +119,8 @@ export default function Home() {
       title: result.title,
       channel: result.channel,
       sourceUrl: result.sourceUrl,
-      genre: filters.genre === "any" ? "Hip hop" : filters.genre,
-      style: filters.style === "any" ? "Freestyle Type Beat" : filters.style,
+      genre: "Hip hop",
+      style: "Type Beat",
       mood: "User selected",
       bpm: parsedBpm,
       timeSignature: parsedTimeSignature,
@@ -166,6 +131,9 @@ export default function Home() {
         result.metadataConfidence ?? (result.bpm ? "parsed" : "assumed"),
       metadataNotes: result.metadataNotes,
     });
+    // Auto-jump straight to play — no separate "Play" step needed since the
+    // user already picked the beat.
+    setStage("play");
   }
 
   return (
@@ -181,10 +149,6 @@ export default function Home() {
         <div className="mt-6 flex-1">
           {stage === "picker" ? (
             <BeatPickerScreen
-              filters={filters}
-              genres={genres}
-              styles={styles}
-              filteredBeats={filteredBeats}
               selectedBeat={selectedBeat}
               mode={mode}
               difficulty={difficulty}
@@ -196,9 +160,6 @@ export default function Home() {
               youtubeResults={youtubeResults}
               searchStatus={searchStatus}
               searching={searching}
-              onFilterChange={updateFilter}
-              onSelectBeat={setSelectedBeat}
-              onRandomBeat={pickRandomBeat}
               onModeChange={setMode}
               onDifficultyChange={setDifficulty}
               onRoundSecondsChange={setRoundSeconds}
@@ -208,7 +169,6 @@ export default function Home() {
               onYoutubeQueryChange={setYoutubeQuery}
               onSearchYouTube={searchYouTube}
               onSelectYouTubeResult={selectYouTubeResult}
-              onPlay={() => selectedBeat && setStage("play")}
             />
           ) : selectedBeat ? (
             <GameScreen
@@ -295,10 +255,6 @@ function BackgroundOrbs() {
 /* ──────────────────────────────────────────────────────────────────── */
 
 function BeatPickerScreen(props: {
-  filters: BeatFilters;
-  genres: string[];
-  styles: string[];
-  filteredBeats: Beat[];
   selectedBeat: Beat | null;
   mode: RhymeMode;
   difficulty: RhymeWord["difficulty"];
@@ -310,12 +266,6 @@ function BeatPickerScreen(props: {
   youtubeResults: SearchResult[];
   searchStatus: string;
   searching: boolean;
-  onFilterChange: <K extends keyof BeatFilters>(
-    key: K,
-    value: BeatFilters[K],
-  ) => void;
-  onSelectBeat: (beat: Beat) => void;
-  onRandomBeat: () => void;
   onModeChange: (mode: RhymeMode) => void;
   onDifficultyChange: (difficulty: RhymeWord["difficulty"]) => void;
   onRoundSecondsChange: (seconds: number) => void;
@@ -325,13 +275,8 @@ function BeatPickerScreen(props: {
   onYoutubeQueryChange: (query: string) => void;
   onSearchYouTube: (overrideQuery?: string) => void;
   onSelectYouTubeResult: (result: SearchResult) => void;
-  onPlay: () => void;
 }) {
   const {
-    filters,
-    genres,
-    styles,
-    filteredBeats,
     selectedBeat,
     mode,
     difficulty,
@@ -343,10 +288,7 @@ function BeatPickerScreen(props: {
     youtubeResults,
     searchStatus,
     searching,
-    onFilterChange,
-    onSelectBeat,
-    onRandomBeat,
-    onModeChange,
+    onModeChange: _onModeChange,
     onDifficultyChange,
     onRoundSecondsChange,
     onNumPlayersChange,
@@ -355,8 +297,9 @@ function BeatPickerScreen(props: {
     onYoutubeQueryChange,
     onSearchYouTube,
     onSelectYouTubeResult,
-    onPlay,
   } = props;
+  void _onModeChange;
+  void mode;
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,_1.4fr)_minmax(320px,_0.9fr)]">
@@ -371,12 +314,12 @@ function BeatPickerScreen(props: {
             Pick your beat
           </h1>
           <p className="mt-2 max-w-xl text-sm leading-6 text-white/60">
-            Search YouTube for any instrumental, or grab one from the curated
-            shortlist. Filters keep your BPM and vibe locked in.
+            Search YouTube for any instrumental, or tap a genre below to load
+            type beats. Pick one and the round starts right away.
           </p>
         </header>
 
-        {/* YouTube search — now the star */}
+        {/* YouTube search */}
         <div className="glass rounded-[2rem] p-6 sm:p-7">
           <div className="flex items-center gap-3">
             <div className="grid size-10 place-items-center rounded-xl bg-rose-500/20 text-rose-200">
@@ -387,7 +330,7 @@ function BeatPickerScreen(props: {
                 Search YouTube
               </p>
               <p className="text-xs text-white/50">
-                Type a vibe, BPM range, or producer name
+                Type a vibe, BPM, or producer name
               </p>
             </div>
           </div>
@@ -402,7 +345,7 @@ function BeatPickerScreen(props: {
               className="input flex-1 text-base"
               value={youtubeQuery}
               onChange={(e) => onYoutubeQueryChange(e.target.value)}
-              placeholder="boom bap freestyle 90 bpm…"
+              placeholder="boom bap 90 bpm…"
             />
             <button
               type="submit"
@@ -412,24 +355,25 @@ function BeatPickerScreen(props: {
               {searching ? "Searching…" : "Search"}
             </button>
           </form>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {RAP_GENRE_CHIPS.map((chip) => (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {RAP_GENRE_CHIPS.map((label) => (
               <button
-                key={chip.label}
+                key={label}
                 type="button"
                 disabled={searching}
-                onClick={() => onSearchYouTube(chip.query)}
-                className="chip chip-button text-xs disabled:opacity-40"
-                title={chip.query}
+                onClick={() =>
+                  onSearchYouTube(`${label.toLowerCase()} type beat`)
+                }
+                className="chip chip-button disabled:opacity-40"
               >
-                {chip.label}
+                {label}
               </button>
             ))}
           </div>
           <p className="mt-3 text-xs leading-5 text-white/45">{searchStatus}</p>
 
           {youtubeResults.length > 0 ? (
-            <div className="scroll-thin mt-5 grid max-h-[420px] gap-2 overflow-auto pr-1 sm:grid-cols-2">
+            <div className="scroll-thin mt-5 grid max-h-[520px] gap-2 overflow-auto pr-1 sm:grid-cols-2">
               {youtubeResults.map((result) => {
                 const active =
                   selectedBeat?.youtubeVideoId === result.youtubeVideoId;
@@ -440,7 +384,7 @@ function BeatPickerScreen(props: {
                     className={`group flex gap-3 rounded-2xl border p-3 text-left transition-all ${
                       active
                         ? "border-orange-300/70 bg-orange-300/10 shadow-lg shadow-orange-950/30"
-                        : "border-white/8 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.07]"
+                        : "border-white/10 bg-white/[0.03] hover:border-orange-300/40 hover:bg-white/[0.06]"
                     }`}
                   >
                     {result.thumbnailUrl ? (
@@ -462,7 +406,7 @@ function BeatPickerScreen(props: {
                       <p className="mt-1 truncate text-xs text-white/45">
                         {result.channel}
                       </p>
-                      <div className="mt-2 flex flex-wrap gap-1">
+                      <div className="mt-2 flex flex-wrap items-center gap-1">
                         {result.bpm ? (
                           <span className="chip chip-accent font-mono">
                             {result.bpm} BPM
@@ -473,110 +417,48 @@ function BeatPickerScreen(props: {
                             {result.timeSignature}
                           </span>
                         ) : null}
+                        <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-orange-400/15 px-2.5 py-1 text-[0.65rem] font-bold uppercase tracking-wider text-orange-200 opacity-0 transition-opacity group-hover:opacity-100">
+                          <Play className="size-3" /> Play
+                        </span>
                       </div>
                     </div>
                   </button>
                 );
               })}
             </div>
-          ) : null}
-        </div>
-
-        {/* Curated beats grid */}
-        <div className="glass rounded-[2rem] p-6 sm:p-7">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="font-display text-lg font-semibold">
-                Curated shortlist
-              </p>
-              <p className="text-xs text-white/50">
-                {filteredBeats.length} of {beats.length} match your filters
-              </p>
+          ) : (
+            <div className="mt-5 rounded-2xl border border-dashed border-white/10 p-8 text-center text-sm text-white/40">
+              Tap a genre above or run a search to load beats.
             </div>
-            <button onClick={onRandomBeat} className="secondary-button">
-              <Shuffle className="size-4" /> Random
-            </button>
-          </div>
-
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {filteredBeats.length === 0 ? (
-              <p className="col-span-full rounded-2xl border border-dashed border-white/10 p-6 text-center text-sm text-white/50">
-                No curated beats match those filters. Loosen them or use the
-                YouTube search above.
-              </p>
-            ) : (
-              filteredBeats.map((beat) => {
-                const active = selectedBeat?.id === beat.id;
-                return (
-                  <button
-                    key={beat.id}
-                    onClick={() => onSelectBeat(beat)}
-                    className={`rounded-2xl border p-4 text-left transition-all ${
-                      active
-                        ? "border-orange-300/70 bg-orange-300/10 shadow-lg shadow-orange-950/30"
-                        : "border-white/8 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.06]"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="font-semibold leading-snug">{beat.title}</p>
-                      <span className="chip chip-accent shrink-0 font-mono">
-                        {beat.bpm}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-xs text-white/45">
-                      {beat.style} · {beat.mood}
-                    </p>
-                    <p className="mt-2 text-[0.65rem] uppercase tracking-widest text-white/40">
-                      {beat.timeSignature} · {beat.genre}
-                    </p>
-                  </button>
-                );
-              })
-            )}
-          </div>
+          )}
         </div>
       </div>
 
-      {/* RIGHT: FILTERS + GAME CONFIG */}
+      {/* RIGHT: GAME SETTINGS */}
       <aside className="space-y-6">
         <div className="glass rounded-[2rem] p-6 sm:p-7">
-          <p className="font-display text-lg font-semibold">Filters</p>
-          <p className="text-xs text-white/50">Narrow the curated list</p>
+          <p className="chip chip-accent">
+            <Sparkles className="size-3.5" /> Step 2
+          </p>
+          <h2 className="mt-3 font-display text-2xl font-bold leading-tight">
+            Game settings
+          </h2>
+          <p className="mt-1 text-xs text-white/50">
+            Tune the round before you pick a beat.
+          </p>
 
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <Field label="Min BPM">
-              <input
-                className="input font-mono"
-                type="number"
-                value={filters.minBpm}
-                onChange={(e) =>
-                  onFilterChange("minBpm", Number(e.target.value))
-                }
-              />
-            </Field>
-            <Field label="Max BPM">
-              <input
-                className="input font-mono"
-                type="number"
-                value={filters.maxBpm}
-                onChange={(e) =>
-                  onFilterChange("maxBpm", Number(e.target.value))
-                }
-              />
-            </Field>
-            <Field label="Time signature">
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <Field label="Players">
               <select
                 className="input"
-                value={filters.timeSignature}
-                onChange={(e) =>
-                  onFilterChange("timeSignature", e.target.value)
-                }
+                value={numPlayers}
+                onChange={(e) => onNumPlayersChange(Number(e.target.value))}
               >
-                {["any", "4/4", "3/4", "6/8", "2/4", "5/4", "7/4"].map(
-                  (item) => (
-                    <option key={item}>{item}</option>
-                  ),
-                )}
+                {[1, 2, 3, 4].map((item) => (
+                  <option key={item} value={item}>
+                    {item} {item === 1 ? "player" : "players"}
+                  </option>
+                ))}
               </select>
             </Field>
             <Field label="Duration">
@@ -592,51 +474,6 @@ function BeatPickerScreen(props: {
                 ))}
               </select>
             </Field>
-            <Field label="Players">
-              <select
-                className="input"
-                value={numPlayers}
-                onChange={(e) => onNumPlayersChange(Number(e.target.value))}
-              >
-                {[1, 2, 3, 4].map((item) => (
-                  <option key={item} value={item}>
-                    {item} {item === 1 ? "player" : "players"}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Genre">
-              <select
-                className="input"
-                value={filters.genre}
-                onChange={(e) => onFilterChange("genre", e.target.value)}
-              >
-                <option value="any">any</option>
-                {genres.map((item) => (
-                  <option key={item}>{item}</option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Style">
-              <select
-                className="input"
-                value={filters.style}
-                onChange={(e) => onFilterChange("style", e.target.value)}
-              >
-                <option value="any">any</option>
-                {styles.map((item) => (
-                  <option key={item}>{item}</option>
-                ))}
-              </select>
-            </Field>
-          </div>
-        </div>
-
-        <div className="glass rounded-[2rem] p-6 sm:p-7">
-          <p className="font-display text-lg font-semibold">Game mode</p>
-          <p className="text-xs text-white/50">How rhyme targets cycle</p>
-
-          <div className="mt-4 grid grid-cols-2 gap-3">
             <Field label="Difficulty">
               <select
                 className="input"
@@ -683,49 +520,26 @@ function BeatPickerScreen(props: {
               </select>
             </Field>
           </div>
-          <p className="mt-3 text-xs leading-5 text-white/50">
-            {mode.description}
-          </p>
         </div>
 
-        {/* Selected beat summary + play */}
-        <div
-          className={`rounded-[2rem] p-6 sm:p-7 transition-all ${
-            selectedBeat
-              ? "bg-gradient-to-br from-orange-400 via-rose-500 to-fuchsia-600 text-black shadow-2xl shadow-fuchsia-900/40"
-              : "glass text-white/55"
-          }`}
-        >
-          {selectedBeat ? (
-            <>
-              <p className="text-[0.65rem] font-bold uppercase tracking-[0.32em] text-black/70">
-                Ready to play
-              </p>
-              <p className="mt-2 line-clamp-2 font-display text-xl font-bold leading-snug">
-                {selectedBeat.title}
-              </p>
-              <p className="mt-1 font-mono text-sm font-semibold text-black/80">
-                {selectedBeat.bpm} BPM · {selectedBeat.timeSignature} ·{" "}
-                {selectedBeat.style}
-              </p>
-              <button
-                onClick={onPlay}
-                className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-black px-6 py-4 font-display text-base font-bold text-white shadow-lg shadow-black/40 transition-all hover:bg-zinc-900"
-              >
-                <Play className="size-5" /> Play
-              </button>
-            </>
-          ) : (
-            <>
-              <p className="font-display text-lg font-semibold text-white/80">
-                Pick a beat to continue
-              </p>
-              <p className="mt-2 text-sm leading-6 text-white/50">
-                Search YouTube or tap one of the curated beats on the left.
-                Then you'll get the full game stage.
-              </p>
-            </>
-          )}
+        <div className="rounded-[2rem] p-6 sm:p-7 glass text-white/70">
+          <p className="font-display text-base font-semibold text-white/90">
+            How it works
+          </p>
+          <ol className="mt-3 space-y-2 text-sm leading-6 text-white/55">
+            <li>
+              <span className="font-mono text-orange-300">1.</span> Tweak game
+              settings above.
+            </li>
+            <li>
+              <span className="font-mono text-orange-300">2.</span> Tap a
+              genre or run a search.
+            </li>
+            <li>
+              <span className="font-mono text-orange-300">3.</span> Click any
+              beat — round starts instantly.
+            </li>
+          </ol>
         </div>
       </aside>
     </div>
@@ -1187,7 +1001,8 @@ function RhymeLadder({
   return (
     <div className="relative flex flex-1 flex-col">
       {/* Stack: top row is the active bar; rows below scroll down into view. */}
-      <div className="relative flex-1 overflow-hidden">
+      {/* pt-12 leaves headroom for the bouncing ball above the active row. */}
+      <div className="relative flex-1 overflow-hidden pt-14">
         <div ref={stackRef} className="flex flex-col gap-3" style={{ willChange: "transform" }}>
           {rows.map((w, rowIdx) => {
             const isActiveRow = rowIdx === 0;
