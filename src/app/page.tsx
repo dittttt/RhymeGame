@@ -834,17 +834,26 @@ function GameScreen({
   }
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,_1fr)_360px]">
+    <div className="grid gap-4 sm:gap-5 xl:grid-cols-[minmax(0,_1fr)_360px]">
+      {/* MOBILE: video first so user sees what's playing; desktop keeps stage left */}
+      <aside className="space-y-4 xl:order-2">
+        <div className="overflow-hidden rounded-2xl border border-white/8 bg-black sm:rounded-[2rem]">
+          <div className="aspect-video w-full">
+            <div ref={player.containerRef} className="h-full w-full" />
+          </div>
+        </div>
+      </aside>
+
       {/* LEFT: STAGE */}
-      <div className="space-y-4">
+      <div className="space-y-4 xl:order-1">
         {/* Rhyme ladder stage — matches the site's glass theme */}
-        <div className="glass relative overflow-hidden rounded-[2rem] p-0">
+        <div className="glass relative overflow-hidden rounded-2xl p-0 sm:rounded-[2rem]">
           <BeatPulseBg
             beatProgress={clock.beatProgress}
             isPlaying={player.isPlaying}
           />
 
-          <div className="relative flex min-h-[520px] flex-col gap-4 px-5 py-6 sm:min-h-[600px]">
+          <div className="relative flex min-h-[420px] flex-col gap-4 px-3 py-5 sm:min-h-[600px] sm:px-5 sm:py-6">
             {/* Status line */}
             <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-white/55">
               {player.status === "loading" ? (
@@ -883,11 +892,11 @@ function GameScreen({
         </div>
 
         {/* Controls bar */}
-        <div className="glass flex flex-wrap items-center justify-between gap-3 rounded-[1.5rem] p-3">
-          <div className="flex items-center gap-2">
+        <div className="glass flex flex-wrap items-center justify-between gap-3 rounded-2xl p-3 sm:rounded-[1.5rem]">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
             <button
               onClick={player.toggle}
-              className="primary-button !min-w-[120px]"
+              className="primary-button !min-w-[120px] flex-1 sm:flex-none"
             >
               {player.isPlaying ? (
                 <>
@@ -924,15 +933,9 @@ function GameScreen({
         </div>
       </div>
 
-      {/* RIGHT: PLAYER + SYNC */}
-      <aside className="space-y-4">
-        <div className="overflow-hidden rounded-[2rem] border border-white/8 bg-black">
-          <div className="aspect-video w-full">
-            <div ref={player.containerRef} className="h-full w-full" />
-          </div>
-        </div>
-
-        <div className="glass rounded-[2rem] p-5">
+      {/* RIGHT: SYNC + INFO (mobile: appears below stage) */}
+      <aside className="space-y-4 xl:order-3">
+        <div className="glass rounded-2xl p-4 sm:rounded-[2rem] sm:p-5">
           <p className="font-display text-sm font-semibold">Sync nudge</p>
           <p className="text-xs text-white/50">
             If the ball feels early or late, slide to align with the kick. Or
@@ -961,7 +964,7 @@ function GameScreen({
           </button>
         </div>
 
-        <div className="glass rounded-[2rem] p-5 text-xs leading-6 text-white/55">
+        <div className="glass rounded-2xl p-4 text-xs leading-6 text-white/55 sm:rounded-[2rem] sm:p-5">
           <p className="font-display text-sm font-semibold text-white">
             How it works
           </p>

@@ -85,6 +85,12 @@ export function useYouTubePlayer({
   const rafRef = useRef<number | null>(null);
   const onTickRef = useRef(onTick);
   const offsetRef = useRef(offsetSeconds);
+  // For smooth interpolation: YT.getCurrentTime() can update only every
+  // ~250ms on mobile, causing the ball to freeze/jump. We anchor the last
+  // known YT time + wallclock, then advance by wallclock delta each frame.
+  const anchorYTRef = useRef<number>(startSeconds);
+  const anchorWallRef = useRef<number>(0);
+  const lastYTRef = useRef<number>(startSeconds);
 
   const [status, setStatus] = useState<PlaybackStatus>("idle");
   const [currentTime, setCurrentTime] = useState<number>(startSeconds);
@@ -159,12 +165,35 @@ export function useYouTubePlayer({
     const tick = () => {
       const p = playerRef.current;
       if (p) {
-        const t = p.getCurrentTime() + offsetRef.current;
+        const ytNow = p.getCurrentTime();
+        const wallNow = performance.now();
+        // If YT actually advanced (or jumped backwards on seek), re-anchor.
+        if (ytNow !== lastYTRef.current) {
+          // Guard against tiny jitter: only re-anchor if drift is meaningful
+          // OR YT clearly moved forward beyond our interpolation.
+          const interpolated =
+            anchorYTRef.current + (wallNow - anchorWallRef.current) / 1000;
+          if (Math.abs(ytNow - interpolated) > 0.05) {
+            anchorYTRef.current = ytNow;
+            anchorWallRef.current = wallNow;
+          }
+          lastYTRef.current = ytNow;
+        }
+        const interpolated =
+          anchorYTRef.current + (wallNow - anchorWallRef.current) / 1000;
+        const t = interpolated + offsetRef.current;
         setCurrentTime(t);
         onTickRef.current?.(t);
       }
       rafRef.current = requestAnimationFrame(tick);
     };
+    // Initialize anchors when playback starts.
+    const p0 = playerRef.current;
+    if (p0) {
+      anchorYTRef.current = p0.getCurrentTime();
+      anchorWallRef.current = performance.now();
+      lastYTRef.current = anchorYTRef.current;
+    }
     rafRef.current = requestAnimationFrame(tick);
     return () => {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
