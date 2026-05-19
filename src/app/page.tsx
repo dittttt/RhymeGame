@@ -735,15 +735,18 @@ function GameScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [poolForDifficulty, mode.id, shuffleSeed, beat.youtubeVideoId]);
 
-  const autoAdvanced = player.isPlaying
-    ? Math.floor(
-        Math.max(0, clock.currentBar - 1) / Math.max(1, mode.changeEveryBars),
-      )
-    : 0;
-  const displayedIndex = wordIndex + autoAdvanced;
+  // Each visible row = 1 musical bar. Ball travels across 4 cells of the
+  // active (top) row at `beatInBar`. The right-most cell of each row is the
+  // target rhyme word for that bar.
+  const VISIBLE_ROWS = 5;
+  const barOffset = player.isPlaying ? Math.max(0, clock.currentBar - 1) : 0;
+  const displayedIndex = wordIndex + barOffset;
   const safeQueue = queue.length ? queue : rhymeWords;
-  const currentWord = safeQueue[displayedIndex % safeQueue.length];
-  const nextWord = safeQueue[(displayedIndex + 1) % safeQueue.length];
+  const visibleWords: RhymeWord[] = Array.from(
+    { length: VISIBLE_ROWS },
+    (_, i) => safeQueue[(displayedIndex + i) % safeQueue.length],
+  );
+  const currentWord = visibleWords[0];
 
   // Round timer (purely visual, driven by elapsed audio seconds)
   const progress = Math.min(100, (elapsedSeconds / roundSeconds) * 100);
@@ -762,16 +765,16 @@ function GameScreen({
     <div className="grid gap-5 xl:grid-cols-[minmax(0,_1fr)_360px]">
       {/* LEFT: STAGE */}
       <div className="space-y-4">
-        {/* Word ball / stage — TALL */}
-        <div className="relative overflow-hidden rounded-[2rem] border border-white/8 bg-gradient-to-b from-[#1a0a2e] via-[#100620] to-[#0a0612]">
+        {/* Rhyme ladder stage */}
+        <div className="relative overflow-hidden rounded-[2rem] border border-white/8 bg-gradient-to-b from-[#3b1184] via-[#2a0a66] to-[#180647]">
           <BeatPulseBg
             beatProgress={clock.beatProgress}
             isPlaying={player.isPlaying}
           />
 
-          <div className="relative flex min-h-[460px] flex-col items-center justify-center gap-8 px-6 py-10 sm:min-h-[540px]">
+          <div className="relative flex min-h-[520px] flex-col gap-4 px-5 py-6 sm:min-h-[600px]">
             {/* Status line */}
-            <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-white/45">
+            <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-white/55">
               {player.status === "loading" ? (
                 <span className="chip">Loading…</span>
               ) : null}
@@ -789,29 +792,21 @@ function GameScreen({
               </span>
             </div>
 
-            {/* THE WORD BALL */}
-            <WordBall
+            {/* Active word headline (the one the ball is bouncing toward) */}
+            <ActiveWordHeader
               word={currentWord}
+              beatInBar={clock.beatInBar}
               beatProgress={clock.beatProgress}
               isPlaying={player.isPlaying}
             />
 
-            {/* Beat dots */}
-            <BeatDots
+            {/* Rhyme ladder: 5 rows × 4 cells. Active row = top. */}
+            <RhymeLadder
+              rows={visibleWords}
               beatInBar={clock.beatInBar}
-              beatsPerBar={clock.beatsPerBar}
               beatProgress={clock.beatProgress}
+              isPlaying={player.isPlaying}
             />
-
-            {/* Next word preview */}
-            <div className="text-center">
-              <p className="text-[0.65rem] font-semibold uppercase tracking-[0.32em] text-white/40">
-                Up next
-              </p>
-              <p className="mt-1 font-display text-xl font-semibold text-white/70">
-                {nextWord.word}
-              </p>
-            </div>
           </div>
         </div>
 
@@ -917,94 +912,136 @@ function GameScreen({
 }
 
 /* ──────────────────────────────────────────────────────────────────── */
-/* WORD BALL                                                            */
+/* ACTIVE WORD HEADER (the "DOWN" label + dropping comet at top)         */
 /* ──────────────────────────────────────────────────────────────────── */
 
-function WordBall({
+function ActiveWordHeader({
   word,
+  beatInBar,
   beatProgress,
   isPlaying,
 }: {
   word: RhymeWord;
+  beatInBar: number;
   beatProgress: number;
   isPlaying: boolean;
 }) {
-  // 0..1 within the beat. Use an ease so it lands hard on the downbeat.
-  const t = isPlaying ? beatProgress : 0;
-  // Bounce: peak at 0.0 (just landed), trough at 0.5
-  const bounce = isPlaying ? Math.sin(t * Math.PI) * 28 : 0;
-  // Scale pulse: smaller right after the hit, swells before next
-  const scale = isPlaying ? 1 + Math.sin((1 - t) * Math.PI) * 0.06 : 1;
+  // The comet "falls" as the bar approaches beat 4 (the rhyme).
+  const onBeat4 = beatInBar === 4;
+  const fall = isPlaying && onBeat4 ? beatProgress : 0;
+  const dropY = fall * 70;
+  const cometOpacity = isPlaying ? (onBeat4 ? 1 : 0.35) : 0.35;
 
   return (
-    <div className="relative">
-      {/* Pulse rings on every beat */}
-      {isPlaying ? (
-        <div
-          key={Math.floor(t * 1e6)} // forces re-mount each beat for restart
-          className="pulse-ring pointer-events-none absolute left-1/2 top-1/2 size-[280px] rounded-full border-2 border-orange-300/40 sm:size-[340px]"
-        />
-      ) : null}
-
+    <div className="relative flex h-24 items-end justify-center">
       <div
-        className="relative grid size-[280px] place-items-center rounded-full bg-gradient-to-br from-orange-300 via-rose-400 to-fuchsia-500 shadow-[0_30px_80px_-20px_rgba(217,70,239,0.55)] transition-transform duration-100 ease-out sm:size-[340px]"
-        style={{
-          transform: `translateY(-${bounce}px) scale(${scale})`,
-        }}
+        key={word.id}
+        className="word-pop relative inline-flex items-center justify-center rounded-2xl bg-black/70 px-6 py-2 shadow-[0_10px_30px_-8px_rgba(0,0,0,0.6)] ring-1 ring-white/10"
       >
-        <div className="absolute inset-2 rounded-full bg-gradient-to-br from-white/30 to-transparent" />
-        <div
-          key={word.id}
-          className="word-pop relative flex flex-col items-center px-6 text-center text-black"
-        >
-          <p className="text-[0.6rem] font-bold uppercase tracking-[0.32em] text-black/65">
-            Rhyme with
-          </p>
-          <p className="font-display text-5xl font-bold leading-none tracking-tight sm:text-6xl">
-            {word.word}
-          </p>
-          <p className="mt-2 font-mono text-xs font-semibold text-black/55">
-            {word.syllables} syl · {word.rhymeGroup}
-          </p>
-        </div>
+        <span className="font-display text-3xl font-extrabold uppercase tracking-wide text-white sm:text-4xl">
+          {word.word}
+        </span>
       </div>
+      <div
+        className="pointer-events-none absolute left-1/2 top-full size-4 -translate-x-1/2 rounded-full bg-orange-400 shadow-[0_0_18px_4px_rgba(251,146,60,0.65)]"
+        style={{
+          transform: `translate(-50%, ${dropY}px)`,
+          opacity: cometOpacity,
+          transition: "opacity 120ms linear",
+        }}
+      />
     </div>
   );
 }
 
 /* ──────────────────────────────────────────────────────────────────── */
-/* BEAT DOTS                                                            */
+/* RHYME LADDER (5 rows × 4 cells, ball traverses active row)            */
 /* ──────────────────────────────────────────────────────────────────── */
 
-function BeatDots({
+const ROW_COLORS = [
+  "bg-orange-400 text-black",
+  "bg-sky-400 text-black",
+  "bg-orange-400 text-black",
+  "bg-sky-400 text-black",
+  "bg-orange-400 text-black",
+];
+
+function RhymeLadder({
+  rows,
   beatInBar,
-  beatsPerBar,
   beatProgress,
+  isPlaying,
 }: {
+  rows: RhymeWord[];
   beatInBar: number;
-  beatsPerBar: number;
   beatProgress: number;
+  isPlaying: boolean;
 }) {
+  // Ball traverses the TOP row (the active bar). beatInBar is 1..4.
+  // Bounce within current cell using beatProgress.
+  const activeCol = Math.min(3, Math.max(0, beatInBar - 1));
+  // 4 columns -> center of column i is (i + 0.5)/4
+  const ballLeftPct = ((activeCol + 0.5) / 4) * 100;
+  const bounce = isPlaying ? Math.sin(beatProgress * Math.PI) * 14 : 0;
+
   return (
-    <div className="flex items-center gap-3">
-      {Array.from({ length: beatsPerBar }, (_, i) => {
-        const active = i + 1 === beatInBar;
-        const scale = active ? 1 + (1 - beatProgress) * 0.5 : 1;
+    <div className="relative flex flex-1 flex-col gap-3">
+      {rows.map((w, rowIdx) => {
+        const isActiveRow = rowIdx === 0;
         return (
           <div
-            key={i}
-            className={`size-3 rounded-full transition-colors duration-150 ${
-              active ? "bg-orange-300" : "bg-white/15"
-            }`}
-            style={{
-              transform: `scale(${scale})`,
-              boxShadow: active
-                ? `0 0 ${12 * (1 - beatProgress)}px rgba(253, 186, 116, 0.9)`
-                : undefined,
-            }}
-          />
+            key={`${rowIdx}-${w.id}`}
+            className="relative grid grid-cols-4 gap-2 sm:gap-3"
+          >
+            {[0, 1, 2, 3].map((col) => {
+              const isWordCell = col === 3;
+              const isActiveCell = isActiveRow && col === activeCol;
+
+              if (isWordCell) {
+                return (
+                  <div
+                    key={col}
+                    className={`flex h-12 items-center justify-center rounded-xl px-2 text-center font-display text-base font-bold shadow-[0_4px_0_rgba(0,0,0,0.35)] sm:h-14 sm:text-lg ${ROW_COLORS[rowIdx % ROW_COLORS.length]} ${isActiveRow ? "ring-2 ring-white/70" : ""}`}
+                  >
+                    {w.word}
+                  </div>
+                );
+              }
+
+              return (
+                <div
+                  key={col}
+                  className={`flex h-12 items-center justify-center rounded-xl shadow-[0_4px_0_rgba(0,0,0,0.35)] transition-colors duration-100 sm:h-14 ${
+                    isActiveCell
+                      ? "bg-white"
+                      : "bg-white/25"
+                  }`}
+                >
+                  <span
+                    className={`size-1.5 rounded-full ${isActiveCell ? "bg-black/30" : "bg-white/60"}`}
+                  />
+                </div>
+              );
+            })}
+
+            {/* Ball overlay — only on active row, traveling along the 3 placeholder cells */}
+            {isActiveRow && isPlaying ? (
+              <div
+                className="pointer-events-none absolute top-1/2 size-6 rounded-full bg-orange-400 shadow-[0_0_20px_6px_rgba(251,146,60,0.55)] sm:size-7"
+                style={{
+                  left: `calc(${ballLeftPct}% - 0.75rem)`,
+                  transform: `translateY(calc(-50% - ${bounce}px))`,
+                  transition: "left 140ms linear",
+                }}
+              />
+            ) : null}
+          </div>
         );
       })}
+
+      <p className="mt-auto text-center text-[0.65rem] uppercase tracking-[0.32em] text-white/45">
+        Rap the word on the right · 4 beats per bar
+      </p>
     </div>
   );
 }
