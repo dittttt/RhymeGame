@@ -21,6 +21,7 @@ import {
   getStyles,
   rhymeModes,
   rhymeWords,
+  shuffle,
   type Beat,
   type RhymeMode,
   type RhymeWord,
@@ -691,13 +692,48 @@ function GameScreen({
     elapsedSeconds,
   );
 
-  const playableWords = useMemo(
-    () =>
-      rhymeWords.filter(
-        (word) => word.difficulty === difficulty || difficulty === "advanced",
-      ),
-    [difficulty],
-  );
+  // Pool of words allowed at this difficulty (advanced unlocks everything).
+  const poolForDifficulty = useMemo(() => {
+    if (difficulty === "advanced") return rhymeWords;
+    if (difficulty === "intermediate")
+      return rhymeWords.filter(
+        (w) => w.difficulty === "beginner" || w.difficulty === "intermediate",
+      );
+    return rhymeWords.filter((w) => w.difficulty === "beginner");
+  }, [difficulty]);
+
+  // Fresh shuffled queue per round. Reshuffles whenever the beat, difficulty,
+  // mode, or the seed bumps (Reset round / re-enter game).
+  const [shuffleSeed, setShuffleSeed] = useState(0);
+  const queue = useMemo(() => {
+    if (mode.id === "aaaa") {
+      // Pick one rhyme group, give 4 words from it, then move on.
+      const groups = Array.from(new Set(poolForDifficulty.map((w) => w.rhymeGroup)));
+      const shuffledGroups = shuffle(groups);
+      const out: RhymeWord[] = [];
+      for (const g of shuffledGroups) {
+        const inGroup = shuffle(poolForDifficulty.filter((w) => w.rhymeGroup === g));
+        for (let i = 0; i < 4; i++) out.push(inGroup[i % inGroup.length]);
+      }
+      return out;
+    }
+    if (mode.id === "abab") {
+      // Alternate between two rhyme groups each bar.
+      const groups = Array.from(new Set(poolForDifficulty.map((w) => w.rhymeGroup)));
+      const shuffledGroups = shuffle(groups);
+      const out: RhymeWord[] = [];
+      for (let p = 0; p < shuffledGroups.length - 1; p += 2) {
+        const a = shuffle(poolForDifficulty.filter((w) => w.rhymeGroup === shuffledGroups[p]));
+        const b = shuffle(poolForDifficulty.filter((w) => w.rhymeGroup === shuffledGroups[p + 1]));
+        for (let i = 0; i < 4; i++) out.push(i % 2 === 0 ? a[i % a.length] : b[i % b.length]);
+      }
+      return out.length ? out : shuffle(poolForDifficulty);
+    }
+    // free + toolkit: just shuffle the entire pool.
+    return shuffle(poolForDifficulty);
+    // shuffleSeed intentionally part of deps so Reset / re-enter rerolls.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [poolForDifficulty, mode.id, shuffleSeed, beat.youtubeVideoId]);
 
   const autoAdvanced = player.isPlaying
     ? Math.floor(
@@ -705,12 +741,9 @@ function GameScreen({
       )
     : 0;
   const displayedIndex = wordIndex + autoAdvanced;
-  const currentWord =
-    playableWords[displayedIndex % Math.max(1, playableWords.length)] ??
-    rhymeWords[0];
-  const nextWord =
-    playableWords[(displayedIndex + 1) % Math.max(1, playableWords.length)] ??
-    rhymeWords[0];
+  const safeQueue = queue.length ? queue : rhymeWords;
+  const currentWord = safeQueue[displayedIndex % safeQueue.length];
+  const nextWord = safeQueue[(displayedIndex + 1) % safeQueue.length];
 
   // Round timer (purely visual, driven by elapsed audio seconds)
   const progress = Math.min(100, (elapsedSeconds / roundSeconds) * 100);
@@ -722,6 +755,7 @@ function GameScreen({
   function resetRound() {
     originRef.current = player.currentTime;
     setWordIndex(0);
+    setShuffleSeed((s) => s + 1);
   }
 
   return (

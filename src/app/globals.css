@@ -76,9 +76,41 @@ textarea {
   box-shadow: 0 0 0 3px rgb(251 146 60 / 0.18);
 }
 
+/* Custom-styled <select> that fits the glass UI. Removes native chevron
+   and paints our own gradient arrow so it matches the orange/fuchsia theme. */
+select.input {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 2.4rem;
+  background-image:
+    linear-gradient(135deg, transparent 50%, #fb923c 50%),
+    linear-gradient(45deg, #d946ef 50%, transparent 50%);
+  background-position:
+    calc(100% - 1.15rem) 50%,
+    calc(100% - 0.7rem) 50%;
+  background-size:
+    6px 6px,
+    6px 6px;
+  background-repeat: no-repeat;
+  background-color: rgb(255 255 255 / 0.04);
+  cursor: pointer;
+  font-weight: 500;
+}
+
+select.input:hover {
+  background-color: rgb(255 255 255 / 0.07);
+  border-color: rgb(255 255 255 / 0.18);
+}
+
+select.input:focus {
+  background-color: rgb(255 255 255 / 0.08);
+}
+
 .input option {
   background: #150a24;
   color: white;
+  padding: 0.5rem;
 }
 
 .primary-button,
