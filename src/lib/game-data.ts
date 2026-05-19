@@ -35,7 +35,7 @@ export type RhymeWord = {
 };
 
 export type RhymeMode = {
-  id: "free" | "aaaa" | "abab" | "toolkit";
+  id: "standard";
   label: string;
   description: string;
   changeEveryBars: number;
@@ -45,28 +45,11 @@ export const defaultRoundSeconds = 90;
 
 export const rhymeModes: RhymeMode[] = [
   {
-    id: "free",
-    label: "Free Mode",
-    description: "One target at a time. Use it however you want with friends.",
-    changeEveryBars: 2,
-  },
-  {
-    id: "aaaa",
-    label: "AAAA Pattern",
-    description: "Keep the same rhyme family for four target changes.",
+    id: "standard",
+    label: "Standard",
+    description:
+      "Difficulty controls everything: Beginner shows the word on both bars, Intermediate hides the first, Advanced hides three of four.",
     changeEveryBars: 1,
-  },
-  {
-    id: "abab",
-    label: "ABAB Pattern",
-    description: "Alternate between two rhyme families every bar.",
-    changeEveryBars: 1,
-  },
-  {
-    id: "toolkit",
-    label: "Rapper's Toolkit",
-    description: "Random word prompts for flexible freestyle practice.",
-    changeEveryBars: 2,
   },
 ];
 

@@ -11,6 +11,8 @@ interface YTPlayer {
   seekTo(seconds: number, allowSeekAhead: boolean): void;
   getCurrentTime(): number;
   getPlayerState(): YTPlayerState;
+  setVolume(v: number): void;
+  getVolume(): number;
   destroy(): void;
 }
 
@@ -173,12 +175,33 @@ export function useYouTubePlayer({
   const play = useCallback(() => playerRef.current?.playVideo(), []);
   const pause = useCallback(() => playerRef.current?.pauseVideo(), []);
   const seekTo = useCallback((s: number) => playerRef.current?.seekTo(Math.max(0, s), true), []);
+  const setVolume = useCallback((v: number) => {
+    const p = playerRef.current;
+    if (!p) return;
+    try { p.setVolume(Math.max(0, Math.min(100, v))); } catch { /* noop */ }
+  }, []);
   const toggle = useCallback(() => {
     const p = playerRef.current;
     if (!p) return;
     const state = p.getPlayerState();
     if (state === 1) p.pauseVideo();
     else p.playVideo();
+  }, []);
+
+  /** Linearly fade volume from `from` → `to` over `ms` ms. Returns a cancel fn. */
+  const fadeVolume = useCallback((from: number, to: number, ms: number) => {
+    const p = playerRef.current;
+    if (!p) return () => {};
+    const startedAt = performance.now();
+    let raf = 0;
+    const step = () => {
+      const t = Math.min(1, (performance.now() - startedAt) / ms);
+      const v = from + (to - from) * t;
+      try { p.setVolume(Math.max(0, Math.min(100, v))); } catch { /* noop */ }
+      if (t < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
   }, []);
 
   return {
@@ -188,6 +211,8 @@ export function useYouTubePlayer({
     play,
     pause,
     seekTo,
+    setVolume,
+    fadeVolume,
     toggle,
     isPlaying: status === "playing",
   };

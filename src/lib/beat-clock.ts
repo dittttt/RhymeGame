@@ -27,6 +27,7 @@ export function getBeatClock(beat: Beat, elapsedSeconds: number) {
     beatProgress,
     audioPositionSeconds,
     beatLength,
+    secondsPerBar: beatLength * perBar,
   };
 }
 
