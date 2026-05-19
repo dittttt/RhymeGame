@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
   Music2,
@@ -9,7 +10,6 @@ import {
   Play,
   RotateCcw,
   Search,
-  SkipForward,
   Sparkles,
   Users,
 } from "lucide-react";
@@ -131,22 +131,19 @@ export default function Home() {
         result.metadataConfidence ?? (result.bpm ? "parsed" : "assumed"),
       metadataNotes: result.metadataNotes,
     });
-    // Auto-jump straight to play — no separate "Play" step needed since the
-    // user already picked the beat.
     setStage("play");
   }
 
   return (
     <main className="relative min-h-screen overflow-x-hidden text-white">
       <BackgroundOrbs />
-      <section className="relative mx-auto flex min-h-screen w-full max-w-[1500px] flex-col px-4 py-5 sm:px-8 sm:py-7">
-        <TopBar
-          stage={stage}
-          selectedBeat={selectedBeat}
-          onBack={() => setStage("picker")}
-        />
-
-        <div className="mt-6 flex-1">
+      <SiteHeader
+        stage={stage}
+        selectedBeat={selectedBeat}
+        onBack={() => setStage("picker")}
+      />
+      <section className="relative mx-auto flex w-full max-w-[1500px] flex-col px-4 pb-8 pt-10 sm:px-8 sm:pb-10 sm:pt-14">
+        <div className="flex-1">
           {stage === "picker" ? (
             <BeatPickerScreen
               selectedBeat={selectedBeat}
@@ -189,10 +186,10 @@ export default function Home() {
 }
 
 /* ──────────────────────────────────────────────────────────────────── */
-/* TOP BAR                                                              */
+/* SITE HEADER                                                          */
 /* ──────────────────────────────────────────────────────────────────── */
 
-function TopBar({
+function SiteHeader({
   stage,
   selectedBeat,
   onBack,
@@ -202,36 +199,54 @@ function TopBar({
   onBack: () => void;
 }) {
   return (
-    <nav className="flex flex-wrap items-center justify-between gap-4">
-      <div className="flex items-center gap-3">
-        {stage === "play" ? (
-          <button
-            onClick={onBack}
-            className="grid size-11 place-items-center rounded-2xl border border-white/10 bg-white/5 transition-colors hover:bg-white/10"
-            aria-label="Back to beat picker"
-          >
-            <ArrowLeft className="size-5" />
-          </button>
-        ) : (
-          <div className="grid size-11 place-items-center rounded-2xl bg-gradient-to-br from-orange-400 to-fuchsia-500 text-black shadow-lg shadow-fuchsia-900/30">
-            <Music2 className="size-6" />
+    <header className="sticky top-0 z-40 border-b border-white/10 bg-[#0a0612]/70 backdrop-blur-xl">
+      {/* Gradient hairline */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-[-1px] h-px bg-gradient-to-r from-transparent via-orange-400/60 to-fuchsia-500/60" />
+      <div className="mx-auto flex w-full max-w-[1500px] items-center justify-between gap-3 px-4 py-3 sm:px-8 sm:py-4">
+        <div className="flex items-center gap-3">
+          {stage === "play" ? (
+            <button
+              onClick={onBack}
+              className="grid size-10 place-items-center rounded-2xl border border-white/10 bg-white/5 transition-colors hover:bg-white/10"
+              aria-label="Back to beat picker"
+            >
+              <ArrowLeft className="size-5" />
+            </button>
+          ) : (
+            <div className="grid size-10 place-items-center rounded-2xl bg-gradient-to-br from-orange-400 to-fuchsia-500 text-black shadow-lg shadow-fuchsia-900/30">
+              <Music2 className="size-5" />
+            </div>
+          )}
+          <div className="min-w-0">
+            <p className="font-display text-lg font-bold leading-none tracking-tight sm:text-xl">
+              Rhyme Game
+            </p>
+            <p className="mt-1 truncate text-[0.6rem] uppercase tracking-[0.32em] text-white/45 sm:text-[0.65rem]">
+              {stage === "play" && selectedBeat
+                ? `${selectedBeat.bpm} BPM · ${selectedBeat.timeSignature} · ${selectedBeat.style}`
+                : "freestyle to the beat"}
+            </p>
           </div>
-        )}
-        <div>
-          <p className="font-display text-xl font-bold leading-none tracking-tight">
-            RhymeGame
-          </p>
-          <p className="mt-1 text-[0.65rem] uppercase tracking-[0.32em] text-white/45">
-            {stage === "play" && selectedBeat
-              ? `${selectedBeat.bpm} BPM · ${selectedBeat.timeSignature} · ${selectedBeat.style}`
-              : "freestyle to the beat"}
-          </p>
         </div>
+
+        <nav className="flex items-center gap-1.5 sm:gap-2">
+          <span className="rounded-full bg-gradient-to-r from-orange-400/20 to-fuchsia-500/20 px-3 py-1.5 text-xs font-semibold text-orange-200 ring-1 ring-orange-300/40 sm:px-4 sm:text-sm">
+            Solo
+          </span>
+          <button
+            type="button"
+            disabled
+            title="Coming soon"
+            className="cursor-not-allowed rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/40 sm:px-4 sm:text-sm"
+          >
+            Multiplayer
+            <span className="ml-1.5 hidden rounded-full bg-white/10 px-1.5 py-0.5 text-[0.55rem] uppercase tracking-wider text-white/55 sm:inline">
+              Soon
+            </span>
+          </button>
+        </nav>
       </div>
-      <div className="chip">
-        <Users className="size-3.5" /> No typing — rhyme out loud
-      </div>
-    </nav>
+    </header>
   );
 }
 
@@ -521,26 +536,6 @@ function BeatPickerScreen(props: {
             </Field>
           </div>
         </div>
-
-        <div className="rounded-[2rem] p-6 sm:p-7 glass text-white/70">
-          <p className="font-display text-base font-semibold text-white/90">
-            How it works
-          </p>
-          <ol className="mt-3 space-y-2 text-sm leading-6 text-white/55">
-            <li>
-              <span className="font-mono text-orange-300">1.</span> Tweak game
-              settings above.
-            </li>
-            <li>
-              <span className="font-mono text-orange-300">2.</span> Tap a
-              genre or run a search.
-            </li>
-            <li>
-              <span className="font-mono text-orange-300">3.</span> Click any
-              beat — round starts instantly.
-            </li>
-          </ol>
-        </div>
       </aside>
     </div>
   );
@@ -569,6 +564,8 @@ function GameScreen({
   rhymePattern: RhymePattern;
   onExit: () => void;
 }) {
+  void mode;
+  void onExit;
   const [wordIndex, setWordIndex] = useState(0);
   const [syncOffset, setSyncOffset] = useState(0); // seconds
 
@@ -615,9 +612,7 @@ function GameScreen({
   // Pre-roll vs live
   const inPreroll = player.isPlaying && clock.currentBar <= PREROLL_BARS;
   const liveBar = Math.max(0, clock.currentBar - PREROLL_BARS); // 0 before, 1..n during
-  const countdownNumber = inPreroll
-    ? PREROLL_BARS - (clock.currentBar - 1)
-    : 0;
+  // (countdownNumber removed; pre-roll lighting is driven directly off beatInBar)
 
   // Pool of words allowed at this difficulty, optionally narrowed by the
   // selected wordlist (we intersect by spelling; if the intersection is empty
@@ -641,9 +636,6 @@ function GameScreen({
   }, [difficulty, wordlistId]);
 
   const [shuffleSeed, setShuffleSeed] = useState(0);
-  // Queue of WORDS, one per bar, built from the chosen rhyme pattern.
-  // Each letter in the pattern picks a fresh rhyme group; identical letters
-  // reuse the same group, so AABB → group X X Y Y, ABAB → X Y X Y, etc.
   const patternLetters = useMemo(
     () =>
       rhymePattern === "Freeform"
@@ -657,11 +649,9 @@ function GameScreen({
     );
     if (allGroups.length === 0) return shuffle(poolForDifficulty);
     const out: RhymeWord[] = [];
-    const cycles = difficulty === "advanced" ? 4 : 2; // total bars per cycle multiplier
+    const cycles = difficulty === "advanced" ? 4 : 2;
     for (let c = 0; c < cycles; c++) {
       const letterToGroup = new Map<string, string>();
-      // Per-letter shuffled bag so repeated letters in the same cycle
-      // (e.g. AABB → two A's) draw DIFFERENT words from the group.
       const letterBag = new Map<string, RhymeWord[]>();
       let cursor = (c * patternLetters.length) % allGroups.length;
       for (const letter of patternLetters) {
@@ -678,8 +668,6 @@ function GameScreen({
         }
         const bag = letterBag.get(letter)!;
         if (bag.length === 0) {
-          // Group exhausted — refill (only happens if pattern needs more
-          // bars of this letter than the group has unique words).
           bag.push(
             ...shuffle(poolForDifficulty.filter((w) => w.rhymeGroup === g)),
           );
@@ -692,12 +680,9 @@ function GameScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [poolForDifficulty, patternLetters, difficulty, shuffleSeed, beat.youtubeVideoId]);
 
-  // Coloring stride: how many adjacent bars share a color. AABB=2, AAAA=4,
-  // everything else (ABAB / ABBA / Freeform) = 1 so colors alternate per bar.
   const groupSpan =
     rhymePattern === "AAAA" ? 4 : rhymePattern === "AABB" ? 2 : 1;
 
-  // 4 visible bars (matches the real app). Active row = top.
   const VISIBLE_ROWS = VISIBLE_BARS;
   const barOffset = inPreroll ? 0 : Math.max(0, liveBar - 1);
   const displayedIndex = wordIndex + barOffset;
@@ -707,15 +692,12 @@ function GameScreen({
     (_, i) => safeQueue[(displayedIndex + i) % safeQueue.length],
   );
 
-  // Round timer ticks only during live play (after pre-roll).
   const liveSeconds = inPreroll
     ? 0
     : Math.max(0, elapsedSeconds - PREROLL_BARS * clock.secondsPerBar);
   const progress = Math.min(100, (liveSeconds / roundSeconds) * 100);
   const timeLeft = Math.max(0, roundSeconds - Math.floor(liveSeconds));
 
-  // Round is "over" when the YouTube video ends, OR the round timer ran out
-  // after pre-roll. We freeze the ladder and clear bars in this state.
   const isRoundOver =
     player.status === "ended" ||
     (!inPreroll && liveSeconds > 0 && timeLeft <= 0);
@@ -733,11 +715,15 @@ function GameScreen({
     }
   }, [timeLeft, player]);
 
-  function nextManual() {
-    setWordIndex((c) => c + 1);
-  }
   function resetRound() {
-    originRef.current = player.currentTime;
+    // Pause first so audio doesn't keep playing during seek.
+    player.pause();
+    // Seek back to the locked origin (where the downbeat was anchored) or
+    // the beat's startSeconds — that's the clean "ready to tap on drop" state.
+    const seekTarget = originRef.current ?? beat.startSeconds ?? 0;
+    player.seekTo(seekTarget);
+    // Reset bar/word/score state.
+    originRef.current = null;
     setWordIndex(0);
     setShuffleSeed((s) => s + 1);
     fadedOutRef.current = false;
@@ -751,7 +737,7 @@ function GameScreen({
 
   return (
     <div className="grid gap-4 sm:gap-5 xl:grid-cols-[minmax(0,_1fr)_360px]">
-      {/* MOBILE: video first so user sees what's playing; desktop keeps stage left */}
+      {/* MOBILE: video first; desktop keeps stage left */}
       <aside className="space-y-4 xl:order-2">
         <div className="overflow-hidden rounded-2xl border border-white/8 bg-black sm:rounded-[2rem]">
           <div className="aspect-video w-full">
@@ -762,14 +748,15 @@ function GameScreen({
 
       {/* LEFT: STAGE */}
       <div className="space-y-4 xl:order-1">
-        {/* Rhyme ladder stage — matches the site's glass theme */}
+        {/* Rhyme ladder stage */}
         <div className="glass relative overflow-hidden rounded-2xl p-0 sm:rounded-[2rem]">
           <BeatPulseBg
             beatProgress={clock.beatProgress}
             isPlaying={player.isPlaying}
+            isRoundOver={isRoundOver}
           />
 
-          <div className="relative flex min-h-[420px] flex-col gap-4 px-3 py-5 sm:min-h-[600px] sm:px-5 sm:py-6">
+          <div className="relative flex min-h-[460px] flex-col gap-4 px-3 py-5 sm:min-h-[640px] sm:px-5 sm:py-6">
             {/* Status line */}
             <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-white/55">
               {player.status === "loading" ? (
@@ -813,11 +800,11 @@ function GameScreen({
         </div>
 
         {/* Controls bar */}
-        <div className="glass flex flex-wrap items-center justify-between gap-3 rounded-2xl p-3 sm:rounded-[1.5rem]">
-          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+        <div className="glass flex flex-wrap items-center justify-between gap-4 rounded-2xl p-4 sm:gap-6 sm:rounded-[1.5rem]">
+          <div className="flex w-full flex-wrap items-center gap-4 sm:w-auto sm:gap-6">
             <button
               onClick={player.toggle}
-              className="primary-button !min-w-[120px] flex-1 sm:flex-none"
+              className="primary-button !min-w-[140px] flex-1 sm:flex-none"
             >
               {player.isPlaying ? (
                 <>
@@ -832,16 +819,13 @@ function GameScreen({
             <button onClick={tapDrop} className="secondary-button">
               <Music2 className="size-4" /> Tap on drop
             </button>
-            <button onClick={nextManual} className="ghost-button">
-              <SkipForward className="size-4" /> Skip
-            </button>
             <button onClick={resetRound} className="ghost-button">
               <RotateCcw className="size-4" /> Reset
             </button>
 
-            {/* Sync nudge inline pill — same family as ghost/secondary buttons */}
-            <div className="ghost-button !cursor-default !gap-2 !px-3">
-              <span className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-white/55">
+            {/* Sync nudge — co-equal with the action buttons */}
+            <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 shadow-inner shadow-black/20">
+              <span className="text-[0.75rem] font-bold uppercase tracking-[0.2em] text-orange-200/90">
                 Sync
               </span>
               <input
@@ -851,17 +835,20 @@ function GameScreen({
                 step={0.02}
                 value={syncOffset}
                 onChange={(e) => setSyncOffset(Number(e.target.value))}
-                className="h-1 w-28 accent-orange-400"
+                className="h-2 w-44 accent-orange-400 sm:w-56"
                 aria-label="Sync nudge"
               />
-              <span className="w-12 text-right font-mono text-[0.7rem] text-white/70 tabular-nums">
+              <span className="w-16 text-right font-mono text-sm font-semibold text-white tabular-nums">
                 {syncOffset >= 0 ? "+" : ""}
-                {(syncOffset * 1000).toFixed(0)}ms
+                {(syncOffset * 1000).toFixed(0)}
+                <span className="ml-0.5 text-xs font-normal text-white/55">
+                  ms
+                </span>
               </span>
               {syncOffset !== 0 ? (
                 <button
                   onClick={() => setSyncOffset(0)}
-                  className="text-[0.65rem] text-white/45 underline-offset-2 hover:text-white/80 hover:underline"
+                  className="text-xs text-white/55 underline-offset-2 hover:text-white hover:underline"
                 >
                   reset
                 </button>
@@ -871,7 +858,7 @@ function GameScreen({
         </div>
       </div>
 
-      {/* RIGHT: PLAYBACK + SYNC + INFO (mobile: appears below stage) */}
+      {/* RIGHT: PLAYBACK */}
       <aside className="space-y-4 xl:order-3">
         <div className="glass rounded-2xl p-4 sm:rounded-[2rem] sm:p-5">
           <p className="font-display text-sm font-semibold">Playback</p>
@@ -887,26 +874,9 @@ function GameScreen({
               />
             </div>
           </div>
-        </div>
-
-        <div className="glass rounded-2xl p-4 text-xs leading-6 text-white/55 sm:rounded-[2rem] sm:p-5">
-          <p className="font-display text-sm font-semibold text-white">
-            How it works
+          <p className="mt-3 text-[0.65rem] uppercase tracking-[0.2em] text-white/40">
+            {beat.bpm} BPM · {secondsPerBeat(beat.bpm).toFixed(2)}s / beat
           </p>
-          <p className="mt-2">
-            2-bar count-in, then the ball bounces left → right across each bar
-            at {beat.bpm} BPM (
-            <span className="font-mono">
-              {secondsPerBeat(beat.bpm).toFixed(2)}s
-            </span>
-            /beat). Rhyme the word on the right when the ball lands.
-          </p>
-          <button
-            onClick={onExit}
-            className="mt-3 text-white/60 underline-offset-2 hover:text-white hover:underline"
-          >
-            ← Back to beat picker
-          </button>
         </div>
       </aside>
     </div>
@@ -915,11 +885,9 @@ function GameScreen({
 
 
 /* ──────────────────────────────────────────────────────────────────── */
-/* RHYME LADDER (5 rows × 4 cells, ball arcs above active row)          */
+/* RHYME LADDER                                                         */
 /* ──────────────────────────────────────────────────────────────────── */
 
-// Pattern: pairs of same color (2 bars orange, 2 bars blue) for beginner/intermediate,
-// quads (4 bars same color) for advanced — driven by groupSpan.
 function rowColor(
   absoluteBarIdx: number,
   groupSpan: number,
@@ -941,6 +909,13 @@ function rowColor(
         glow: "shadow-[0_0_24px_8px_rgba(56,189,248,0.55)]",
       };
 }
+
+// Neutral palette used during round-complete so the ladder doesn't keep flashing.
+const NEUTRAL_PALETTE = {
+  bar: "bg-white/10 text-white/70",
+  ball: "bg-white/30",
+  glow: "",
+};
 
 function RhymeLadder({
   rows,
@@ -971,22 +946,19 @@ function RhymeLadder({
   beat: Beat;
   startSeconds: number;
 }) {
-  // Drive the ball + bar slide imperatively via rAF so it stays smooth even
-  // when React state updates lag (YT iframe getCurrentTime ticks every ~250ms
-  // on mobile). We read the wallclock-interpolated time directly each frame.
   const ballRef = useRef<HTMLDivElement | null>(null);
   const stackRef = useRef<HTMLDivElement | null>(null);
   const secPerBeat = 60 / Math.max(1, beat.bpm);
   const secPerBar = secPerBeat * beatsPerBar;
-  const palette0 = rowColor(barOffset, groupSpan);
+  // Freeze palette to neutral when the round is over — kills the orange/cyan flash.
+  const palette0 = isRoundOver ? NEUTRAL_PALETTE : rowColor(barOffset, groupSpan);
 
-  // Dynamic grid template based on time signature.
   const gridTemplate = `repeat(${beatsPerBar}, minmax(0, 1fr))`;
   const cellPct = 100 / beatsPerBar;
 
   useEffect(() => {
     if (!isPlaying || isRoundOver) {
-      // Reset to start when not playing or round complete.
+      // Hide ball entirely + freeze position when not playing or round over.
       if (ballRef.current) {
         ballRef.current.style.transform = `translate3d(0px, -100%, 0)`;
       }
@@ -1002,22 +974,16 @@ function RhymeLadder({
       if (ball && stack) {
         const t = getCurrentTimeNow();
         const elapsed = Math.max(0, t - (startSeconds ?? 0));
-        // Continuous beat position in current bar, 0..beatsPerBar
         const beatPosInBar = (elapsed / secPerBeat) % beatsPerBar;
-        // Map beat → CENTER of its cell.
         const ballPct = (cellPct / 2 + beatPosInBar * cellPct) % 100;
-        // Hop arc within current beat. Keep ball perfectly round — no squash.
-        const phaseInBeat = beatPosInBar - Math.floor(beatPosInBar); // 0..1
+        const phaseInBeat = beatPosInBar - Math.floor(beatPosInBar);
         const hop = Math.sin(phaseInBeat * Math.PI);
         const hopHeight = 56;
         const ballY = -hop * hopHeight;
-        // Use parent width to convert pct → px so transform stays GPU-friendly.
         const parentW = ball.parentElement?.offsetWidth ?? 0;
         const ballHalf = ball.offsetWidth / 2;
         const x = (ballPct / 100) * parentW - ballHalf;
         ball.style.transform = `translate3d(${x}px, calc(-100% + ${ballY}px), 0)`;
-        // Stack stays fixed; smooth slide between bars happens via the
-        // key-driven CSS transition on the inner translate (see below).
         stack.style.transform = `translate3d(0,0,0)`;
       }
       raf = requestAnimationFrame(loop);
@@ -1026,17 +992,19 @@ function RhymeLadder({
     return () => cancelAnimationFrame(raf);
   }, [isPlaying, isRoundOver, getCurrentTimeNow, beat.bpm, startSeconds, secPerBar, secPerBeat, cellPct, beatsPerBar]);
 
-  // Pop the LANDED cell when ball touches down (start of each beat).
-  const justLanded = beatProgress < 0.18;
+  // Don't trigger cell-pop after round ends.
+  const justLanded = !isRoundOver && beatProgress < 0.18;
 
-  // Countdown bar row cells. During pre-roll we light up beats 1..beatsPerBar-1
-  // as the count proceeds; the LAST beat cell stays empty gray (matches spec).
+  // Pre-roll: light up beats 1..n-1 of the current bar; the LAST cell stays
+  // empty gray (per spec) so the row "looks like a normal ladder row that
+  // happens to have an empty word slot at the end".
   const countdownActive = inPreroll && isPlaying;
   const activeCountIdx = countdownActive ? Math.max(0, beatInBar - 1) : -1;
 
   return (
     <div className="relative flex flex-1 flex-col gap-3">
-      {/* Count-in bar row — same grid as the ladder so cells align vertically. */}
+      {/* Count-in row — full-size cells matching a regular ladder row.
+          Last cell stays empty gray outline (no word, no fill). */}
       <div
         className="grid gap-2 sm:gap-3"
         style={{ gridTemplateColumns: gridTemplate }}
@@ -1044,126 +1012,138 @@ function RhymeLadder({
       >
         {Array.from({ length: beatsPerBar }, (_, i) => {
           const isLastCell = i === beatsPerBar - 1;
-          // Last cell ALWAYS stays empty gray per spec.
           const isCurrent = !isLastCell && i === activeCountIdx;
-          const isPassed = !isLastCell && countdownActive && i < activeCountIdx;
+          const isPassed =
+            !isLastCell && countdownActive && i < activeCountIdx;
+          // Last cell = empty outline. Others either active/passed/future.
+          const cls = isLastCell
+            ? "border-2 border-dashed border-white/15 bg-transparent"
+            : isCurrent
+              ? "border border-cyan-300/0 bg-cyan-400 shadow-[0_0_20px_6px_rgba(34,211,238,0.55)]"
+              : isPassed
+                ? "border border-cyan-300/0 bg-cyan-400/35"
+                : "border border-white/10 bg-white/[0.04]";
           return (
             <div
               key={i}
-              className={`flex h-6 items-center justify-center rounded-lg border transition-colors duration-150 sm:h-7 ${
-                isCurrent
-                  ? "border-cyan-300/0 bg-cyan-400 shadow-[0_0_16px_4px_rgba(34,211,238,0.55)]"
-                  : isPassed
-                    ? "border-cyan-300/0 bg-cyan-400/35"
-                    : "border-white/15 bg-white/5"
-              }`}
+              className={`flex h-14 items-center justify-center rounded-xl shadow-[0_4px_0_rgba(0,0,0,0.25)] transition-colors duration-150 sm:h-16 ${cls}`}
             />
           );
         })}
       </div>
 
-      {/* Stack: top row is the active bar; rows below scroll down into view. */}
-      {/* pt-12 leaves headroom for the bouncing ball above the active row. */}
-      <div className="relative flex-1 overflow-hidden pt-14">
+      {/* Stack: top row is the active bar; rows below scroll down into view.
+          pt-24 leaves plenty of headroom for the bouncing ball arc. */}
+      <div className="relative flex-1 overflow-hidden pt-24 sm:pt-28">
         <div
           ref={stackRef}
           className="flex flex-col gap-3"
           style={{ willChange: "transform" }}
         >
-          {/* Inner key-driven slide: re-keys on barOffset change so transform
-              transitions smoothly from -rowHeight → 0 each time bar advances. */}
-          <div
-            key={barOffset}
-            className="flex flex-col gap-3 ladder-slide"
-            style={{ willChange: "transform" }}
-          >
-          {isRoundOver
-            ? (
-              <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
-                <p className="font-display text-2xl font-bold text-white">
-                  Round complete
-                </p>
-                <p className="text-xs text-white/55">
-                  Hit Reset to play another round.
-                </p>
-              </div>
-            )
-            : rows.map((w, rowIdx) => {
-            const isActiveRow = rowIdx === 0;
-            const absBar = barOffset + rowIdx;
-            const palette = rowColor(absBar, groupSpan);
-
-            const posInGroup = absBar % groupSpan;
-            const wordVisible =
-              difficulty === "beginner"
-                ? true
-                : difficulty === "intermediate"
-                  ? posInGroup === Math.max(0, groupSpan - 1)
-                  : posInGroup === Math.max(0, groupSpan - 1);
-
-            const wordCellIdx = beatsPerBar - 1;
-            return (
-              <div
-                key={`${absBar}-${w.id}`}
-                className="relative"
-                style={{
-                  opacity: isActiveRow ? 1 : Math.max(0.2, 0.55 - rowIdx * 0.07),
-                  transformOrigin: "center top",
-                  transition: "opacity 220ms ease-out",
-                }}
-              >
-                <div
-                  className="relative z-10 grid gap-2 sm:gap-3"
-                  style={{ gridTemplateColumns: gridTemplate }}
-                >
-                  {Array.from({ length: beatsPerBar }, (_, col) => {
-                    const isWordCell = col === wordCellIdx;
-                    const cellLanded =
-                      isActiveRow &&
-                      justLanded &&
-                      col === Math.min(wordCellIdx, beatInBar - 1);
-
-                    if (isWordCell) {
-                      return (
-                        <div
-                          key={col}
-                          className={`flex h-14 items-center justify-center overflow-hidden rounded-xl px-2 text-center font-display text-base font-bold shadow-[0_4px_0_rgba(0,0,0,0.35)] sm:h-16 sm:text-lg ${palette.bar} ${
-                            isActiveRow ? "ring-2 ring-inset ring-white/70" : ""
-                          } ${cellLanded ? "cell-pop" : ""}`}
-                        >
-                          {wordVisible ? w.word : "?"}
-                        </div>
-                      );
-                    }
-
-                    return (
-                      <div
-                        key={col}
-                        className={`flex h-14 items-center justify-center rounded-xl shadow-[0_4px_0_rgba(0,0,0,0.35)] transition-transform duration-100 sm:h-16 ${
-                          isActiveRow ? "bg-white/30" : "bg-white/15"
-                        } ${cellLanded ? "cell-pop" : ""}`}
-                      >
-                        <span className="size-1.5 rounded-full bg-white/60" />
-                      </div>
-                    );
-                  })}
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={barOffset}
+              className="flex flex-col gap-3"
+              initial={{ y: 28, opacity: 0.55 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: -10, opacity: 0 }}
+              transition={{
+                type: "spring",
+                stiffness: 260,
+                damping: 28,
+                mass: 0.9,
+              }}
+              style={{ willChange: "transform" }}
+            >
+              {isRoundOver ? (
+                <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
+                  <p className="font-display text-2xl font-bold text-white">
+                    Round complete
+                  </p>
+                  <p className="text-xs text-white/55">
+                    Hit Reset to play another round.
+                  </p>
                 </div>
+              ) : (
+                rows.map((w, rowIdx) => {
+                  const isActiveRow = rowIdx === 0;
+                  const absBar = barOffset + rowIdx;
+                  const palette = rowColor(absBar, groupSpan);
 
-                {/* Bouncing ball — ONLY on the active row, driven imperatively */}
-                {isActiveRow ? (
-                  <div
-                    ref={ballRef}
-                    className={`pointer-events-none absolute left-0 top-0 z-0 size-7 rounded-full sm:size-8 ${palette0.ball} ${palette0.glow}`}
-                    style={{
-                      willChange: "transform",
-                      visibility: isPlaying && !isRoundOver ? "visible" : "hidden",
-                    }}
-                  />
-                ) : null}
-              </div>
-            );
-          })}
-          </div>
+                  const posInGroup = absBar % groupSpan;
+                  const wordVisible =
+                    difficulty === "beginner"
+                      ? true
+                      : posInGroup === Math.max(0, groupSpan - 1);
+
+                  const wordCellIdx = beatsPerBar - 1;
+                  return (
+                    <div
+                      key={`${absBar}-${w.id}`}
+                      className="relative"
+                      style={{
+                        opacity: isActiveRow
+                          ? 1
+                          : Math.max(0.2, 0.55 - rowIdx * 0.07),
+                        transformOrigin: "center top",
+                        transition: "opacity 220ms ease-out",
+                      }}
+                    >
+                      <div
+                        className="relative z-10 grid gap-2 sm:gap-3"
+                        style={{ gridTemplateColumns: gridTemplate }}
+                      >
+                        {Array.from({ length: beatsPerBar }, (_, col) => {
+                          const isWordCell = col === wordCellIdx;
+                          const cellLanded =
+                            isActiveRow &&
+                            justLanded &&
+                            col === Math.min(wordCellIdx, beatInBar - 1);
+
+                          if (isWordCell) {
+                            return (
+                              <div
+                                key={col}
+                                className={`flex h-14 items-center justify-center overflow-hidden rounded-xl px-2 text-center font-display text-base font-bold shadow-[0_4px_0_rgba(0,0,0,0.35)] sm:h-16 sm:text-lg ${palette.bar} ${
+                                  isActiveRow ? "ring-2 ring-inset ring-white/70" : ""
+                                } ${cellLanded ? "cell-pop" : ""}`}
+                              >
+                                {wordVisible ? w.word : "?"}
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div
+                              key={col}
+                              className={`flex h-14 items-center justify-center rounded-xl shadow-[0_4px_0_rgba(0,0,0,0.35)] transition-transform duration-100 sm:h-16 ${
+                                isActiveRow ? "bg-white/30" : "bg-white/15"
+                              } ${cellLanded ? "cell-pop" : ""}`}
+                            >
+                              <span className="size-1.5 rounded-full bg-white/60" />
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Ball — only on active row, hidden when paused / over */}
+                      {isActiveRow ? (
+                        <div
+                          ref={ballRef}
+                          className={`pointer-events-none absolute left-0 top-0 z-0 size-7 rounded-full sm:size-8 ${palette0.ball} ${palette0.glow}`}
+                          style={{
+                            willChange: "transform",
+                            visibility:
+                              isPlaying && !isRoundOver ? "visible" : "hidden",
+                          }}
+                        />
+                      ) : null}
+                    </div>
+                  );
+                })
+              )}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </div>
 
@@ -1181,11 +1161,15 @@ function RhymeLadder({
 function BeatPulseBg({
   beatProgress,
   isPlaying,
+  isRoundOver,
 }: {
   beatProgress: number;
   isPlaying: boolean;
+  isRoundOver: boolean;
 }) {
-  const intensity = isPlaying ? 1 - beatProgress : 0;
+  // Freeze the pulse when round is over so the "Round complete" panel sits
+  // on a calm, non-flashing background.
+  const intensity = isPlaying && !isRoundOver ? 1 - beatProgress : 0;
   return (
     <div
       className="pointer-events-none absolute inset-0"
