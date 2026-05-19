@@ -14,7 +14,6 @@ import {
   Users,
 } from "lucide-react";
 import {
-  defaultRoundSeconds,
   rhymeModes,
   rhymeWords,
   shuffle,
@@ -26,6 +25,7 @@ import { getBeatClock, secondsPerBeat, VISIBLE_BARS } from "@/lib/beat-clock";
 import { useYouTubePlayer } from "@/lib/use-youtube-player";
 import { WORDLISTS, type WordlistId, getWordlist } from "@/lib/wordlists";
 import { RHYME_PATTERNS, type RhymePattern } from "@/lib/rhyme-patterns";
+import { Select } from "@/components/ui/select";
 
 const RAP_GENRE_CHIPS: string[] = [
   "Trap",
@@ -72,7 +72,7 @@ export default function Home() {
   const [mode, setMode] = useState<RhymeMode>(rhymeModes[0]);
   const [difficulty, setDifficulty] =
     useState<RhymeWord["difficulty"]>("beginner");
-  const [roundSeconds, setRoundSeconds] = useState(defaultRoundSeconds);
+  const [roundSeconds, setRoundSeconds] = useState(30);
   const [numPlayers, setNumPlayers] = useState<number>(2);
   const [wordlistId, setWordlistId] = useState<WordlistId>("basic");
   const [rhymePattern, setRhymePattern] = useState<RhymePattern>("AABB");
@@ -131,7 +131,6 @@ export default function Home() {
         result.metadataConfidence ?? (result.bpm ? "parsed" : "assumed"),
       metadataNotes: result.metadataNotes,
     });
-    setStage("play");
   }
 
   return (
@@ -166,6 +165,7 @@ export default function Home() {
               onYoutubeQueryChange={setYoutubeQuery}
               onSearchYouTube={searchYouTube}
               onSelectYouTubeResult={selectYouTubeResult}
+              onStart={() => setStage("play")}
             />
           ) : selectedBeat ? (
             <GameScreen
@@ -224,7 +224,7 @@ function SiteHeader({
             <p className="mt-1 truncate text-[0.6rem] uppercase tracking-[0.32em] text-white/45 sm:text-[0.65rem]">
               {stage === "play" && selectedBeat
                 ? `${selectedBeat.bpm} BPM · ${selectedBeat.timeSignature} · ${selectedBeat.style}`
-                : "freestyle to the beat"}
+                : "MULTIPLAYER SOON"}
             </p>
           </div>
         </div>
@@ -290,6 +290,7 @@ function BeatPickerScreen(props: {
   onYoutubeQueryChange: (query: string) => void;
   onSearchYouTube: (overrideQuery?: string) => void;
   onSelectYouTubeResult: (result: SearchResult) => void;
+  onStart: () => void;
 }) {
   const {
     selectedBeat,
@@ -312,6 +313,7 @@ function BeatPickerScreen(props: {
     onYoutubeQueryChange,
     onSearchYouTube,
     onSelectYouTubeResult,
+    onStart,
   } = props;
   void _onModeChange;
   void mode;
@@ -464,78 +466,101 @@ function BeatPickerScreen(props: {
 
           <div className="mt-5 grid grid-cols-2 gap-3">
             <Field label="Players">
-              <select
-                className="input"
-                value={numPlayers}
-                onChange={(e) => onNumPlayersChange(Number(e.target.value))}
-              >
-                {[1, 2, 3, 4].map((item) => (
-                  <option key={item} value={item}>
-                    {item} {item === 1 ? "player" : "players"}
-                  </option>
-                ))}
-              </select>
+              <Select<string>
+                ariaLabel="Players"
+                value={String(numPlayers)}
+                onValueChange={(v) => onNumPlayersChange(Number(v))}
+                options={[1, 2, 3, 4].map((n) => ({
+                  value: String(n),
+                  label: `${n} ${n === 1 ? "player" : "players"}`,
+                }))}
+              />
             </Field>
             <Field label="Duration">
-              <select
-                className="input"
-                value={roundSeconds}
-                onChange={(e) => onRoundSecondsChange(Number(e.target.value))}
-              >
-                {[60, 90, 120, 180].map((item) => (
-                  <option key={item} value={item}>
-                    {item}s
-                  </option>
-                ))}
-              </select>
+              <Select<string>
+                ariaLabel="Duration"
+                value={String(roundSeconds)}
+                onValueChange={(v) => onRoundSecondsChange(Number(v))}
+                options={[15, 30, 45, 60, 90, 120, 180].map((n) => ({
+                  value: String(n),
+                  label: `${n}s`,
+                }))}
+              />
             </Field>
             <Field label="Difficulty">
-              <select
-                className="input"
+              <Select<RhymeWord["difficulty"]>
+                ariaLabel="Difficulty"
                 value={difficulty}
-                onChange={(e) =>
-                  onDifficultyChange(
-                    e.target.value as RhymeWord["difficulty"],
-                  )
-                }
-              >
-                <option value="beginner">Beginner</option>
-                <option value="intermediate">Intermediate</option>
-                <option value="advanced">Advanced</option>
-              </select>
+                onValueChange={onDifficultyChange}
+                options={[
+                  { value: "beginner", label: "Beginner" },
+                  { value: "intermediate", label: "Intermediate" },
+                  { value: "advanced", label: "Advanced" },
+                ]}
+              />
             </Field>
             <Field label="Wordlist">
-              <select
-                className="input"
+              <Select<WordlistId>
+                ariaLabel="Wordlist"
                 value={wordlistId}
-                onChange={(e) =>
-                  onWordlistChange(e.target.value as WordlistId)
-                }
-              >
-                {WORDLISTS.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.label}
-                  </option>
-                ))}
-              </select>
+                onValueChange={onWordlistChange}
+                options={WORDLISTS.map((w) => ({
+                  value: w.id,
+                  label: w.label,
+                }))}
+              />
             </Field>
             <Field label="Rhyme pattern">
-              <select
-                className="input"
+              <Select<RhymePattern>
+                ariaLabel="Rhyme pattern"
                 value={rhymePattern}
-                onChange={(e) =>
-                  onRhymePatternChange(e.target.value as RhymePattern)
-                }
-              >
-                {RHYME_PATTERNS.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
+                onValueChange={onRhymePatternChange}
+                options={RHYME_PATTERNS.map((p) => ({ value: p, label: p }))}
+              />
             </Field>
           </div>
         </div>
+
+        {/* Beat preview */}
+        {selectedBeat ? (
+          <div className="glass rounded-[2rem] p-6 sm:p-7">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="chip chip-accent">
+                  <Play className="size-3.5" /> Preview
+                </p>
+                <p className="mt-2 line-clamp-1 font-display text-base font-semibold">
+                  {selectedBeat.title}
+                </p>
+                <p className="truncate text-xs text-white/45">
+                  {selectedBeat.bpm} BPM · {selectedBeat.timeSignature} ·{" "}
+                  {selectedBeat.channel}
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 overflow-hidden rounded-2xl border border-white/10 bg-black/40">
+              <iframe
+                key={selectedBeat.youtubeVideoId}
+                src={`https://www.youtube.com/embed/${selectedBeat.youtubeVideoId}?rel=0&modestbranding=1`}
+                title="Beat preview"
+                allow="encrypted-media; picture-in-picture"
+                allowFullScreen
+                className="aspect-video w-full"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={onStart}
+              className="primary-button mt-4 w-full"
+            >
+              <Play className="size-4" /> Start round
+            </button>
+          </div>
+        ) : (
+          <div className="glass rounded-[2rem] p-6 text-center text-sm text-white/45 sm:p-7">
+            Pick a beat to preview it here.
+          </div>
+        )}
       </aside>
     </div>
   );
