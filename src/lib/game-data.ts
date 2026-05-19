@@ -1,3 +1,13 @@
+export type TimeSignature = "4/4" | "3/4" | "6/8" | "2/4" | "5/4" | "7/4";
+
+export type BeatMetadataSource =
+  | "manual"
+  | "youtube_description"
+  | "metadata_api"
+  | "community"
+  | "analysis"
+  | "unknown";
+
 export type Beat = {
   id: string;
   youtubeVideoId: string;
@@ -8,10 +18,12 @@ export type Beat = {
   style: string;
   mood: string;
   bpm: number;
-  timeSignature: "4/4" | "3/4" | "6/8" | "2/4";
+  timeSignature: TimeSignature;
   startSeconds: number;
   durationSeconds: number;
-  metadataSource: "manual" | "community" | "analysis" | "unknown";
+  metadataSource: BeatMetadataSource;
+  metadataConfidence?: "verified" | "parsed" | "assumed" | "unknown";
+  metadataNotes?: string;
 };
 
 export type RhymeWord = {
@@ -88,6 +100,7 @@ export const beats: Beat[] = [
     startSeconds: 30,
     durationSeconds: defaultRoundSeconds,
     metadataSource: "manual",
+    metadataConfidence: "verified",
   },
   {
     id: "lofi-82",
@@ -103,6 +116,7 @@ export const beats: Beat[] = [
     startSeconds: 45,
     durationSeconds: defaultRoundSeconds,
     metadataSource: "manual",
+    metadataConfidence: "verified",
   },
   {
     id: "trap-140",
@@ -118,6 +132,7 @@ export const beats: Beat[] = [
     startSeconds: 25,
     durationSeconds: defaultRoundSeconds,
     metadataSource: "manual",
+    metadataConfidence: "verified",
   },
   {
     id: "rnb-72",
@@ -133,6 +148,7 @@ export const beats: Beat[] = [
     startSeconds: 40,
     durationSeconds: defaultRoundSeconds,
     metadataSource: "manual",
+    metadataConfidence: "verified",
   },
 ];
 

@@ -36,6 +36,12 @@ type SearchResult = {
   channel: string;
   sourceUrl: string;
   thumbnailUrl?: string | null;
+  bpm?: number | null;
+  timeSignature?: Beat["timeSignature"];
+  timeSignatureAssumed?: boolean;
+  metadataSource?: Beat["metadataSource"];
+  metadataConfidence?: Beat["metadataConfidence"];
+  metadataNotes?: string;
 };
 
 export default function Home() {
@@ -125,15 +131,19 @@ export default function Home() {
   async function searchYouTube() {
     setSearchStatus("Searching YouTube...");
     const response = await fetch(`/api/youtube/search?q=${encodeURIComponent(youtubeQuery)}`);
-    const data = (await response.json()) as { error?: string; items?: SearchResult[] };
+    const data = (await response.json()) as { error?: string; note?: string; items?: SearchResult[] };
     setYoutubeResults(data.items ?? []);
     setSearchStatus(
       data.error ??
-        `Found ${data.items?.length ?? 0} embeddable YouTube results. Add BPM/time signature manually after selecting.`,
+        `${data.note ? `${data.note} ` : ""}Found ${data.items?.length ?? 0} type beats with parseable BPM metadata.`,
     );
   }
 
   function selectYouTubeResult(result: SearchResult) {
+    const parsedBpm = result.bpm ?? Math.round((filters.minBpm + filters.maxBpm) / 2);
+    const parsedTimeSignature = result.timeSignature ??
+      (filters.timeSignature === "any" ? "4/4" : (filters.timeSignature as Beat["timeSignature"]));
+
     setSelectedBeat({
       id: result.youtubeVideoId,
       youtubeVideoId: result.youtubeVideoId,
@@ -143,12 +153,13 @@ export default function Home() {
       genre: filters.genre === "any" ? "Hip hop" : filters.genre,
       style: filters.style === "any" ? "Freestyle Type Beat" : filters.style,
       mood: "User selected",
-      bpm: Math.round((filters.minBpm + filters.maxBpm) / 2),
-      timeSignature:
-        filters.timeSignature === "any" ? "4/4" : (filters.timeSignature as Beat["timeSignature"]),
+      bpm: parsedBpm,
+      timeSignature: parsedTimeSignature,
       startSeconds: 30,
       durationSeconds: roundSeconds,
-      metadataSource: "unknown",
+      metadataSource: result.metadataSource ?? "youtube_description",
+      metadataConfidence: result.metadataConfidence ?? (result.bpm ? "parsed" : "assumed"),
+      metadataNotes: result.metadataNotes,
     });
   }
 
@@ -284,7 +295,7 @@ function SetupPanel({
       <div className="grid grid-cols-2 gap-3">
         <Field label="Time signature">
           <select className="input" value={filters.timeSignature} onChange={(event) => onFilterChange("timeSignature", event.target.value)}>
-            {["any", "4/4", "3/4", "6/8", "2/4"].map((item) => <option key={item}>{item}</option>)}
+            {["any", "4/4", "3/4", "6/8", "2/4", "5/4", "7/4"].map((item) => <option key={item}>{item}</option>)}
           </select>
         </Field>
         <Field label="Duration">
@@ -330,7 +341,9 @@ function SetupPanel({
           {youtubeResults.map((result) => (
             <button key={result.youtubeVideoId} onClick={() => onSelectYouTubeResult(result)} className="w-full rounded-2xl bg-white/10 p-3 text-left text-sm hover:bg-white/15">
               <span className="block font-bold">{result.title}</span>
-              <span className="text-xs text-slate-400">{result.channel} · metadata must be set manually</span>
+              <span className="text-xs text-slate-400">
+                {result.channel} · {result.metadataNotes ?? "BPM parsed from description"}
+              </span>
             </button>
           ))}
         </div>
@@ -355,7 +368,11 @@ function SetupPanel({
         <p className="font-bold text-white">Selected Beat</p>
         <p>{selectedBeat.title}</p>
         <p className="text-orange-200">{selectedBeat.bpm} BPM · {selectedBeat.timeSignature} · {selectedBeat.style}</p>
-        <p className="text-xs text-slate-500">BPM/time signature are manual metadata in MVP. YouTube does not provide them directly.</p>
+        <p className="text-xs text-slate-500">
+          Metadata source: {selectedBeat.metadataSource.replaceAll("_", " ")}
+          {selectedBeat.metadataConfidence ? ` · ${selectedBeat.metadataConfidence}` : ""}
+          {selectedBeat.metadataNotes ? ` · ${selectedBeat.metadataNotes}` : ""}
+        </p>
       </div>
 
       <button onClick={onStart} className="primary-button"><Play className="size-5" /> PLAY</button>

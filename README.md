@@ -2,63 +2,87 @@
 
 A browser-first freestyle rap practice game/tool for friends.
 
-RhymeGame is inspired by mobile rhyme-practice tools, but built for the web with Next.js, Vercel, and Supabase. Players search/select a YouTube beat, choose BPM/time signature/genre/style filters, then freestyle out loud while rhyme targets rotate on beat with a bouncing-ball visual.
+RhymeGame is inspired by mobile rhyme-practice tools, but built for the web with Next.js, Vercel, and Supabase. Players search/select a beat, set BPM/time-signature filters, start a timed cypher, and freestyle out loud while rhyme targets rotate on beat.
 
-## Stack
+## Current MVP
 
-- Next.js App Router
-- TypeScript
-- Tailwind CSS
-- Supabase Postgres
-- Vercel hosting
-- YouTube Data API for optional live beat search
-- YouTube embeds for playback/preview
+- Next.js App Router + TypeScript + Tailwind CSS.
+- Freestyle tool, not typed answer scoring.
+- Curated beats with manual metadata.
+- YouTube Data API search that filters for type beats with parseable BPM in the title/description.
+- Full YouTube description lookup via `videos.list`.
+- BPM/time-signature parser for creator metadata like `140 BPM`, `BPM: 140`, `4/4`, `Time Signature: 4/4`.
+- YouTube iframe playback only; no downloading or rehosting audio.
+- Bouncing beat-ball visual synced from BPM/time signature.
+- Supabase schema for beats, rhyme words, sessions, events, and metadata lookups.
+- Placeholder provider route for licensed existing-song metadata lookup.
 
-## MVP Features
+## Metadata rule
 
-- Curated fallback YouTube beats with manual BPM/time-signature metadata
-- YouTube search API route when `YOUTUBE_API_KEY` is configured
-- BPM range, time signature, genre, and style filters
-- Difficulty and rhyme mode selection
-- Large rhyme target display
-- Upcoming word queue
-- Bouncing beat ball / bar indicator
-- YouTube embedded beat player
-- Supabase schema for beats, rhyme words, and game sessions
+For YouTube type beats, RhymeGame only accepts search results with parseable BPM in the title or description. If time signature is missing, the app assumes `4/4` and labels it as assumed.
 
-## Important Beat Metadata Note
+For existing song instrumentals, YouTube descriptions often lack BPM/time signature. The app is designed to use licensed metadata APIs instead of scraping protected sites. Good candidates:
 
-YouTube Data API does **not** provide BPM or time signature. In the MVP, those fields are curated/manual metadata. Future BPM/time-signature analysis should only run on legal/licensed preview audio or user-owned uploads, not by downloading YouTube audio.
+- Soundcharts Audio Features API: BPM, key, time signature.
+- Tunebat API if official API access is obtained.
+- GetSongBPM API if official API access is obtained.
 
-## Local Development
+## Environment variables
 
-```bash
-npm install
-cp .env.example .env.local
-npm run dev
-```
-
-Open `http://localhost:3000`.
-
-## Environment Variables
+Copy `.env.example` to `.env.local` locally or add these in Vercel:
 
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 YOUTUBE_API_KEY=
+SOUNDCHARTS_APP_ID=
+SOUNDCHARTS_API_KEY=
 ```
 
-- Supabase values are needed once the database project is created.
-- `YOUTUBE_API_KEY` is optional. Without it, the app uses curated fallback beats.
+Only the `NEXT_PUBLIC_*` Supabase values are browser-visible. Keep YouTube and metadata-provider API keys server-side only.
 
-## Supabase
+## Local development
 
-Run `supabase/schema.sql` in the Supabase SQL editor for the `RhymeGame` project.
+```bash
+npm install
+npm run dev
+```
 
-## Deployment
+Open:
 
-Target names requested:
+```text
+http://localhost:3000
+```
 
-- GitHub repo: `RhymeGame`
-- Supabase project: `RhymeGame`
-- Vercel project: `RhymeGame`
+## Build checks
+
+```bash
+npm run lint
+npm run build
+```
+
+## Supabase setup
+
+1. Create a Supabase project named `RhymeGame`.
+2. Open SQL Editor.
+3. Run `supabase/schema.sql`.
+4. Copy project URL and anon key.
+5. Set:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+## Vercel setup
+
+1. Import GitHub repo `dittttt/RhymeGame` into Vercel.
+2. Project name: `RhymeGame`.
+3. Framework: Next.js.
+4. Add environment variables from `.env.example`.
+5. Deploy.
+
+## GitHub
+
+Repo:
+
+```text
+https://github.com/dittttt/RhymeGame
+```
