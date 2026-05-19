@@ -2,5 +2,9 @@
   "buildCommand": "npm run build",
   "devCommand": "npm run dev",
   "framework": "nextjs",
-  "installCommand": "npm install"
+  "installCommand": "npm install",
+  "rewrites": [
+    { "source": "/beta", "destination": "https://rhymegame-git-beta-dits-projects-50d98615.vercel.app/beta" },
+    { "source": "/beta/:path*", "destination": "https://rhymegame-git-beta-dits-projects-50d98615.vercel.app/beta/:path*" }
+  ]
 }
