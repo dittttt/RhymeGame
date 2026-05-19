@@ -1,11 +1,5 @@
 import type { Beat } from "./game-data";
 
-/**
- * Number of beat-bar cells the game renders in the on-screen "road".
- * Bumped from 4 → 5 so the upcoming word sits under the last visible bar.
- */
-export const VISIBLE_BARS = 5;
-
 export function secondsPerBeat(bpm: number): number {
   return 60 / Math.max(1, bpm);
 }
