@@ -43,8 +43,8 @@ export async function middleware(request: NextRequest) {
     ) && !path.startsWith("/profile/");
 
   if (needsAuth && !user) {
-    const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("next", path);
+    const loginUrl = new URL("/beta/login", request.url);
+    loginUrl.searchParams.set("next", `/beta${path}`);
     return NextResponse.redirect(loginUrl);
   }
 

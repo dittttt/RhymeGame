@@ -60,7 +60,7 @@ function LoginInner() {
     const origin = window.location.origin;
     await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${origin}/auth/callback?next=${encodeURIComponent(next)}` },
+      options: { redirectTo: `${origin}/beta/auth/callback?next=${encodeURIComponent(next)}` },
     });
   }
 
