@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   ArrowLeft,
   Music2,
@@ -521,7 +521,24 @@ function BeatPickerScreen(props: {
           </div>
         </div>
 
-        {/* Beat preview */}
+        {/* Primary Play CTA — directly under settings card */}
+        <button
+          type="button"
+          onClick={onStart}
+          disabled={!selectedBeat}
+          className="primary-button w-full !py-5 text-lg font-bold tracking-wide shadow-lg shadow-orange-950/30 disabled:cursor-not-allowed disabled:opacity-50"
+          title={!selectedBeat ? "Pick a beat first" : "Start round"}
+        >
+          <Play className="size-6" />
+          {selectedBeat ? "Play" : "Pick a beat to play"}
+        </button>
+        {!selectedBeat ? (
+          <p className="-mt-3 text-center text-xs text-white/45">
+            Select a beat on the left, then hit Play.
+          </p>
+        ) : null}
+
+        {/* Beat preview (informational) */}
         {selectedBeat ? (
           <div className="glass rounded-[2rem] p-6 sm:p-7">
             <div className="flex items-center justify-between gap-3">
@@ -548,17 +565,10 @@ function BeatPickerScreen(props: {
                 className="aspect-video w-full"
               />
             </div>
-            <button
-              type="button"
-              onClick={onStart}
-              className="primary-button mt-4 w-full"
-            >
-              <Play className="size-4" /> Start round
-            </button>
           </div>
         ) : (
           <div className="glass rounded-[2rem] p-6 text-center text-sm text-white/45 sm:p-7">
-            Pick a beat to preview it here.
+            Pick a beat on the left to preview it here.
           </div>
         )}
       </aside>
@@ -1020,43 +1030,11 @@ function RhymeLadder({
   // Don't trigger cell-pop after round ends.
   const justLanded = !isRoundOver && beatProgress < 0.18;
 
-  // Pre-roll: light up beats 1..n-1 of the current bar; the LAST cell stays
-  // empty gray (per spec) so the row "looks like a normal ladder row that
-  // happens to have an empty word slot at the end".
-  const countdownActive = inPreroll && isPlaying;
-  const activeCountIdx = countdownActive ? Math.max(0, beatInBar - 1) : -1;
+  // Pre-roll lighting kept silent; no visual count-in row.
+  void inPreroll;
 
   return (
     <div className="relative flex flex-1 flex-col gap-3">
-      {/* Count-in row — full-size cells matching a regular ladder row.
-          Last cell stays empty gray outline (no word, no fill). */}
-      <div
-        className="grid gap-2 sm:gap-3"
-        style={{ gridTemplateColumns: gridTemplate }}
-        aria-hidden
-      >
-        {Array.from({ length: beatsPerBar }, (_, i) => {
-          const isLastCell = i === beatsPerBar - 1;
-          const isCurrent = !isLastCell && i === activeCountIdx;
-          const isPassed =
-            !isLastCell && countdownActive && i < activeCountIdx;
-          // Last cell = empty outline. Others either active/passed/future.
-          const cls = isLastCell
-            ? "border-2 border-dashed border-white/15 bg-transparent"
-            : isCurrent
-              ? "border border-cyan-300/0 bg-cyan-400 shadow-[0_0_20px_6px_rgba(34,211,238,0.55)]"
-              : isPassed
-                ? "border border-cyan-300/0 bg-cyan-400/35"
-                : "border border-white/10 bg-white/[0.04]";
-          return (
-            <div
-              key={i}
-              className={`flex h-14 items-center justify-center rounded-xl shadow-[0_4px_0_rgba(0,0,0,0.25)] transition-colors duration-150 sm:h-16 ${cls}`}
-            />
-          );
-        })}
-      </div>
-
       {/* Stack: top row is the active bar; rows below scroll down into view.
           pt-24 leaves plenty of headroom for the bouncing ball arc. */}
       <div className="relative flex-1 overflow-hidden pt-24 sm:pt-28">
@@ -1065,19 +1043,15 @@ function RhymeLadder({
           className="flex flex-col gap-3"
           style={{ willChange: "transform" }}
         >
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
+          {/* Clean upward slide on bar advance — no AnimatePresence, no opacity
+              fade, no spring wobble. Just a single tween translate that
+              keys off barOffset so each bar transition slides one row up. */}
+          <motion.div
               key={barOffset}
               className="flex flex-col gap-3"
-              initial={{ y: 28, opacity: 0.55 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: -10, opacity: 0 }}
-              transition={{
-                type: "spring",
-                stiffness: 260,
-                damping: 28,
-                mass: 0.9,
-              }}
+              initial={{ y: 72 }}
+              animate={{ y: 0 }}
+              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
               style={{ willChange: "transform" }}
             >
               {isRoundOver ? (
@@ -1168,7 +1142,6 @@ function RhymeLadder({
                 })
               )}
             </motion.div>
-          </AnimatePresence>
         </div>
       </div>
 
