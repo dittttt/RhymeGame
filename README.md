@@ -66,6 +66,8 @@ npm run build
 1. Create a Supabase project named `RhymeGame`.
 2. Open SQL Editor.
 3. Run `supabase/schema.sql`.
+   - The SQL is safe to rerun.
+   - Supabase/Postgres does not support `create policy if not exists`, so policies are handled with `drop policy if exists` then `create policy`.
 4. Copy project URL and anon key.
 5. Set:
    - `NEXT_PUBLIC_SUPABASE_URL`

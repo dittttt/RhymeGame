@@ -52,6 +52,8 @@ Browser/manual route:
 3. Name: `RhymeGame`
 4. Save the project URL and anon key
 5. SQL Editor → paste and run `supabase/schema.sql`
+   - The SQL is safe to rerun.
+   - Supabase/Postgres does not support `create policy if not exists`; this schema drops/recreates policies instead.
 
 CLI route after login:
 

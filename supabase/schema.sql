@@ -1,4 +1,7 @@
 -- Supabase schema for RhymeGame
+-- Safe to rerun in Supabase SQL Editor.
+-- Note: PostgreSQL/Supabase does not support `create policy if not exists`,
+-- so policies are dropped/recreated explicitly.
 
 create table if not exists public.beats (
   id uuid primary key default gen_random_uuid(),
@@ -69,10 +72,44 @@ alter table public.game_sessions enable row level security;
 alter table public.round_events enable row level security;
 alter table public.metadata_lookups enable row level security;
 
-create policy if not exists "Public read beats" on public.beats for select using (true);
-create policy if not exists "Public read rhyme words" on public.rhyme_words for select using (true);
-create policy if not exists "Public create sessions" on public.game_sessions for insert with check (true);
-create policy if not exists "Public read sessions" on public.game_sessions for select using (true);
-create policy if not exists "Public create round events" on public.round_events for insert with check (true);
-create policy if not exists "Public read round events" on public.round_events for select using (true);
-create policy if not exists "Public read metadata lookups" on public.metadata_lookups for select using (true);
+drop policy if exists "Public read beats" on public.beats;
+create policy "Public read beats"
+  on public.beats
+  for select
+  using (true);
+
+drop policy if exists "Public read rhyme words" on public.rhyme_words;
+create policy "Public read rhyme words"
+  on public.rhyme_words
+  for select
+  using (true);
+
+drop policy if exists "Public create sessions" on public.game_sessions;
+create policy "Public create sessions"
+  on public.game_sessions
+  for insert
+  with check (true);
+
+drop policy if exists "Public read sessions" on public.game_sessions;
+create policy "Public read sessions"
+  on public.game_sessions
+  for select
+  using (true);
+
+drop policy if exists "Public create round events" on public.round_events;
+create policy "Public create round events"
+  on public.round_events
+  for insert
+  with check (true);
+
+drop policy if exists "Public read round events" on public.round_events;
+create policy "Public read round events"
+  on public.round_events
+  for select
+  using (true);
+
+drop policy if exists "Public read metadata lookups" on public.metadata_lookups;
+create policy "Public read metadata lookups"
+  on public.metadata_lookups
+  for select
+  using (true);
