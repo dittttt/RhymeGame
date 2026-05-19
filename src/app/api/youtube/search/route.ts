@@ -45,7 +45,7 @@ export async function GET(request: Request) {
   const searchParamsForYouTube = new URLSearchParams({
     key: apiKey,
     part: "snippet",
-    q: `${query} bpm`,
+    q: query,
     type: "video",
     videoEmbeddable: "true",
     maxResults: "12",

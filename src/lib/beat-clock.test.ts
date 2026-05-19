@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getBeatClock, secondsUntilNextBeat } from "./beat-clock";
+import { getBeatClock, secondsUntilNextBeat, VISIBLE_BARS } from "./beat-clock";
 import type { Beat } from "./game-data";
 
 const beat: Beat = {
@@ -33,5 +33,9 @@ describe("getBeatClock", () => {
 
     expect(clock.beatProgress).toBeCloseTo(0.5);
     expect(secondsUntilNextBeat(beat, 1.25)).toBeCloseTo(0.25);
+  });
+
+  it("renders 5 visible beat bars in the game UI", () => {
+    expect(VISIBLE_BARS).toBe(5);
   });
 });
