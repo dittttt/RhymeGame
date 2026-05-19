@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Inter, Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import { SiteHeader } from "@/components/site/SiteHeader";
+import { BackgroundOrbs } from "@/components/site/BackgroundOrbs";
 
 const inter = Inter({
   variable: "--font-sans",
@@ -37,7 +39,11 @@ export default function RootLayout({
       lang="en"
       className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col font-sans">{children}</body>
+      <body className="min-h-full flex flex-col font-sans text-white">
+        <BackgroundOrbs />
+        <SiteHeader />
+        {children}
+      </body>
     </html>
   );
 }
