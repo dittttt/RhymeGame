@@ -660,6 +660,9 @@ function GameScreen({
     const cycles = difficulty === "advanced" ? 4 : 2; // total bars per cycle multiplier
     for (let c = 0; c < cycles; c++) {
       const letterToGroup = new Map<string, string>();
+      // Per-letter shuffled bag so repeated letters in the same cycle
+      // (e.g. AABB → two A's) draw DIFFERENT words from the group.
+      const letterBag = new Map<string, RhymeWord[]>();
       let cursor = (c * patternLetters.length) % allGroups.length;
       for (const letter of patternLetters) {
         if (!letterToGroup.has(letter)) {
@@ -667,8 +670,21 @@ function GameScreen({
           cursor++;
         }
         const g = letterToGroup.get(letter)!;
-        const inGroup = poolForDifficulty.filter((w) => w.rhymeGroup === g);
-        const pick = inGroup[Math.floor(Math.random() * inGroup.length)];
+        if (!letterBag.has(letter)) {
+          letterBag.set(
+            letter,
+            shuffle(poolForDifficulty.filter((w) => w.rhymeGroup === g)),
+          );
+        }
+        const bag = letterBag.get(letter)!;
+        if (bag.length === 0) {
+          // Group exhausted — refill (only happens if pattern needs more
+          // bars of this letter than the group has unique words).
+          bag.push(
+            ...shuffle(poolForDifficulty.filter((w) => w.rhymeGroup === g)),
+          );
+        }
+        const pick = bag.shift();
         if (pick) out.push(pick);
       }
     }
@@ -1028,14 +1044,14 @@ function RhymeLadder({
             return (
               <div
                 key={`${absBar}-${w.id}`}
-                className="relative overflow-hidden"
+                className="relative"
                 style={{
                   opacity: isActiveRow ? 1 : Math.max(0.2, 0.55 - rowIdx * 0.07),
                   transformOrigin: "center top",
                   transition: "opacity 220ms ease-out",
                 }}
               >
-                <div className="grid grid-cols-4 gap-2 sm:gap-3">
+                <div className="relative z-10 grid grid-cols-4 gap-2 sm:gap-3">
                   {[0, 1, 2, 3].map((col) => {
                     const isWordCell = col === 3;
                     const cellLanded =
@@ -1073,7 +1089,7 @@ function RhymeLadder({
                 {isActiveRow ? (
                   <div
                     ref={ballRef}
-                    className={`pointer-events-none absolute left-0 top-0 size-7 rounded-full sm:size-8 ${palette0.ball} ${palette0.glow}`}
+                    className={`pointer-events-none absolute left-0 top-0 z-0 size-7 rounded-full sm:size-8 ${palette0.ball} ${palette0.glow}`}
                     style={{
                       willChange: "transform",
                       visibility: isPlaying ? "visible" : "hidden",
