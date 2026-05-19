@@ -714,6 +714,12 @@ function GameScreen({
   const progress = Math.min(100, (liveSeconds / roundSeconds) * 100);
   const timeLeft = Math.max(0, roundSeconds - Math.floor(liveSeconds));
 
+  // Round is "over" when the YouTube video ends, OR the round timer ran out
+  // after pre-roll. We freeze the ladder and clear bars in this state.
+  const isRoundOver =
+    player.status === "ended" ||
+    (!inPreroll && liveSeconds > 0 && timeLeft <= 0);
+
   // Fade out near the end of the round.
   const fadedOutRef = useRef(false);
   useEffect(() => {
@@ -792,9 +798,11 @@ function GameScreen({
               rows={visibleWords}
               beatInBar={clock.beatInBar}
               beatProgress={clock.beatProgress}
+              beatsPerBar={clock.beatsPerBar}
               isPlaying={player.isPlaying}
               barOffset={barOffset}
-              countdown={countdownNumber}
+              inPreroll={inPreroll}
+              isRoundOver={isRoundOver}
               difficulty={difficulty}
               groupSpan={groupSpan}
               getCurrentTimeNow={player.getCurrentTimeNow}
@@ -830,6 +838,35 @@ function GameScreen({
             <button onClick={resetRound} className="ghost-button">
               <RotateCcw className="size-4" /> Reset
             </button>
+
+            {/* Sync nudge inline pill — same family as ghost/secondary buttons */}
+            <div className="ghost-button !cursor-default !gap-2 !px-3">
+              <span className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-white/55">
+                Sync
+              </span>
+              <input
+                type="range"
+                min={-1}
+                max={1}
+                step={0.02}
+                value={syncOffset}
+                onChange={(e) => setSyncOffset(Number(e.target.value))}
+                className="h-1 w-28 accent-orange-400"
+                aria-label="Sync nudge"
+              />
+              <span className="w-12 text-right font-mono text-[0.7rem] text-white/70 tabular-nums">
+                {syncOffset >= 0 ? "+" : ""}
+                {(syncOffset * 1000).toFixed(0)}ms
+              </span>
+              {syncOffset !== 0 ? (
+                <button
+                  onClick={() => setSyncOffset(0)}
+                  className="text-[0.65rem] text-white/45 underline-offset-2 hover:text-white/80 hover:underline"
+                >
+                  reset
+                </button>
+              ) : null}
+            </div>
           </div>
         </div>
       </div>
@@ -850,35 +887,6 @@ function GameScreen({
               />
             </div>
           </div>
-        </div>
-
-        <div className="glass rounded-2xl p-4 sm:rounded-[2rem] sm:p-5">
-          <p className="font-display text-sm font-semibold">Sync nudge</p>
-          <p className="text-xs text-white/50">
-            If the ball feels early or late, slide to align with the kick. Or
-            tap the “Tap on drop” button on the downbeat.
-          </p>
-          <div className="mt-3 flex items-center gap-3">
-            <input
-              type="range"
-              min={-1}
-              max={1}
-              step={0.02}
-              value={syncOffset}
-              onChange={(e) => setSyncOffset(Number(e.target.value))}
-              className="flex-1 accent-orange-400"
-            />
-            <span className="w-14 text-right font-mono text-xs text-white/70">
-              {syncOffset >= 0 ? "+" : ""}
-              {(syncOffset * 1000).toFixed(0)}ms
-            </span>
-          </div>
-          <button
-            onClick={() => setSyncOffset(0)}
-            className="mt-2 text-xs text-white/45 underline-offset-2 hover:text-white/70 hover:underline"
-          >
-            Reset to 0
-          </button>
         </div>
 
         <div className="glass rounded-2xl p-4 text-xs leading-6 text-white/55 sm:rounded-[2rem] sm:p-5">
@@ -938,9 +946,11 @@ function RhymeLadder({
   rows,
   beatInBar,
   beatProgress,
+  beatsPerBar,
   isPlaying,
   barOffset,
-  countdown,
+  inPreroll,
+  isRoundOver,
   difficulty,
   groupSpan,
   getCurrentTimeNow,
@@ -950,9 +960,11 @@ function RhymeLadder({
   rows: RhymeWord[];
   beatInBar: number;
   beatProgress: number;
+  beatsPerBar: number;
   isPlaying: boolean;
   barOffset: number;
-  countdown: number;
+  inPreroll: boolean;
+  isRoundOver: boolean;
   difficulty: RhymeWord["difficulty"];
   groupSpan: number;
   getCurrentTimeNow: () => number;
@@ -964,16 +976,19 @@ function RhymeLadder({
   // on mobile). We read the wallclock-interpolated time directly each frame.
   const ballRef = useRef<HTMLDivElement | null>(null);
   const stackRef = useRef<HTMLDivElement | null>(null);
-  const beatsPerBar = 4;
   const secPerBeat = 60 / Math.max(1, beat.bpm);
   const secPerBar = secPerBeat * beatsPerBar;
   const palette0 = rowColor(barOffset, groupSpan);
 
+  // Dynamic grid template based on time signature.
+  const gridTemplate = `repeat(${beatsPerBar}, minmax(0, 1fr))`;
+  const cellPct = 100 / beatsPerBar;
+
   useEffect(() => {
-    if (!isPlaying) {
-      // Reset to start when not playing.
+    if (!isPlaying || isRoundOver) {
+      // Reset to start when not playing or round complete.
       if (ballRef.current) {
-        ballRef.current.style.transform = `translate3d(0px, -100%, 0) scale(1,1)`;
+        ballRef.current.style.transform = `translate3d(0px, -100%, 0)`;
       }
       if (stackRef.current) {
         stackRef.current.style.transform = `translate3d(0,0,0)`;
@@ -989,46 +1004,91 @@ function RhymeLadder({
         const elapsed = Math.max(0, t - (startSeconds ?? 0));
         // Continuous beat position in current bar, 0..beatsPerBar
         const beatPosInBar = (elapsed / secPerBeat) % beatsPerBar;
-        // Map beat → CENTER of its cell (4 cells, centers at 12.5/37.5/62.5/87.5%).
-        // 25% per beat; wraps modulo 100 at the bar boundary.
-        const ballPct = (12.5 + beatPosInBar * 25) % 100;
-        // Hop arc within current beat
+        // Map beat → CENTER of its cell.
+        const ballPct = (cellPct / 2 + beatPosInBar * cellPct) % 100;
+        // Hop arc within current beat. Keep ball perfectly round — no squash.
         const phaseInBeat = beatPosInBar - Math.floor(beatPosInBar); // 0..1
         const hop = Math.sin(phaseInBeat * Math.PI);
         const hopHeight = 56;
         const ballY = -hop * hopHeight;
-        const flatness = 1 - hop;
-        const scaleX = 1 + flatness * 0.25;
-        const scaleY = 1 - flatness * 0.18;
         // Use parent width to convert pct → px so transform stays GPU-friendly.
         const parentW = ball.parentElement?.offsetWidth ?? 0;
         const ballHalf = ball.offsetWidth / 2;
         const x = (ballPct / 100) * parentW - ballHalf;
-        ball.style.transform = `translate3d(${x}px, calc(-100% + ${ballY}px), 0) scale(${scaleX}, ${scaleY})`;
-
-        // Bar slide: smooth scroll-up so next row eases into active position
-        // during the last beat of each bar (subtle, 8px max).
-        const barProgress = (elapsed % secPerBar) / secPerBar; // 0..1
-        const slidePx = barProgress * -4; // gentle parallax
-        stack.style.transform = `translate3d(0, ${slidePx}px, 0)`;
+        ball.style.transform = `translate3d(${x}px, calc(-100% + ${ballY}px), 0)`;
+        // Stack stays fixed; smooth slide between bars happens via the
+        // key-driven CSS transition on the inner translate (see below).
+        stack.style.transform = `translate3d(0,0,0)`;
       }
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [isPlaying, getCurrentTimeNow, beat.bpm, startSeconds, secPerBar, secPerBeat]);
+  }, [isPlaying, isRoundOver, getCurrentTimeNow, beat.bpm, startSeconds, secPerBar, secPerBeat, cellPct, beatsPerBar]);
 
   // Pop the LANDED cell when ball touches down (start of each beat).
-  // We still use React state for the cell-pop highlight since it's coarse.
   const justLanded = beatProgress < 0.18;
 
+  // Countdown bar row cells. During pre-roll we light up beats 1..beatsPerBar-1
+  // as the count proceeds; the LAST beat cell stays empty gray (matches spec).
+  const countdownActive = inPreroll && isPlaying;
+  const activeCountIdx = countdownActive ? Math.max(0, beatInBar - 1) : -1;
+
   return (
-    <div className="relative flex flex-1 flex-col">
+    <div className="relative flex flex-1 flex-col gap-3">
+      {/* Count-in bar row — same grid as the ladder so cells align vertically. */}
+      <div
+        className="grid gap-2 sm:gap-3"
+        style={{ gridTemplateColumns: gridTemplate }}
+        aria-hidden
+      >
+        {Array.from({ length: beatsPerBar }, (_, i) => {
+          const isLastCell = i === beatsPerBar - 1;
+          // Last cell ALWAYS stays empty gray per spec.
+          const isCurrent = !isLastCell && i === activeCountIdx;
+          const isPassed = !isLastCell && countdownActive && i < activeCountIdx;
+          return (
+            <div
+              key={i}
+              className={`flex h-6 items-center justify-center rounded-lg border transition-colors duration-150 sm:h-7 ${
+                isCurrent
+                  ? "border-cyan-300/0 bg-cyan-400 shadow-[0_0_16px_4px_rgba(34,211,238,0.55)]"
+                  : isPassed
+                    ? "border-cyan-300/0 bg-cyan-400/35"
+                    : "border-white/15 bg-white/5"
+              }`}
+            />
+          );
+        })}
+      </div>
+
       {/* Stack: top row is the active bar; rows below scroll down into view. */}
       {/* pt-12 leaves headroom for the bouncing ball above the active row. */}
       <div className="relative flex-1 overflow-hidden pt-14">
-        <div ref={stackRef} className="flex flex-col gap-3" style={{ willChange: "transform" }}>
-          {rows.map((w, rowIdx) => {
+        <div
+          ref={stackRef}
+          className="flex flex-col gap-3"
+          style={{ willChange: "transform" }}
+        >
+          {/* Inner key-driven slide: re-keys on barOffset change so transform
+              transitions smoothly from -rowHeight → 0 each time bar advances. */}
+          <div
+            key={barOffset}
+            className="flex flex-col gap-3 ladder-slide"
+            style={{ willChange: "transform" }}
+          >
+          {isRoundOver
+            ? (
+              <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
+                <p className="font-display text-2xl font-bold text-white">
+                  Round complete
+                </p>
+                <p className="text-xs text-white/55">
+                  Hit Reset to play another round.
+                </p>
+              </div>
+            )
+            : rows.map((w, rowIdx) => {
             const isActiveRow = rowIdx === 0;
             const absBar = barOffset + rowIdx;
             const palette = rowColor(absBar, groupSpan);
@@ -1041,6 +1101,7 @@ function RhymeLadder({
                   ? posInGroup === Math.max(0, groupSpan - 1)
                   : posInGroup === Math.max(0, groupSpan - 1);
 
+            const wordCellIdx = beatsPerBar - 1;
             return (
               <div
                 key={`${absBar}-${w.id}`}
@@ -1051,13 +1112,16 @@ function RhymeLadder({
                   transition: "opacity 220ms ease-out",
                 }}
               >
-                <div className="relative z-10 grid grid-cols-4 gap-2 sm:gap-3">
-                  {[0, 1, 2, 3].map((col) => {
-                    const isWordCell = col === 3;
+                <div
+                  className="relative z-10 grid gap-2 sm:gap-3"
+                  style={{ gridTemplateColumns: gridTemplate }}
+                >
+                  {Array.from({ length: beatsPerBar }, (_, col) => {
+                    const isWordCell = col === wordCellIdx;
                     const cellLanded =
                       isActiveRow &&
                       justLanded &&
-                      col === Math.min(3, beatInBar - 1);
+                      col === Math.min(wordCellIdx, beatInBar - 1);
 
                     if (isWordCell) {
                       return (
@@ -1092,30 +1156,19 @@ function RhymeLadder({
                     className={`pointer-events-none absolute left-0 top-0 z-0 size-7 rounded-full sm:size-8 ${palette0.ball} ${palette0.glow}`}
                     style={{
                       willChange: "transform",
-                      visibility: isPlaying ? "visible" : "hidden",
+                      visibility: isPlaying && !isRoundOver ? "visible" : "hidden",
                     }}
                   />
                 ) : null}
               </div>
             );
           })}
+          </div>
         </div>
       </div>
 
-      {/* Count-in overlay */}
-      {countdown > 0 ? (
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <div
-            key={countdown}
-            className="countdown-pop font-display text-[8rem] font-black leading-none text-white/90 drop-shadow-[0_8px_30px_rgba(0,0,0,0.6)]"
-          >
-            {countdown}
-          </div>
-        </div>
-      ) : null}
-
       <p className="mt-3 text-center text-[0.65rem] uppercase tracking-[0.32em] text-white/45">
-        Rap the word on the right · ball bounces 1 → 4
+        Rap the word on the right · ball bounces 1 → {beatsPerBar}
       </p>
     </div>
   );
