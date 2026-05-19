@@ -1,13 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { Music2, Sparkles } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Music2, Sparkles, LogOut, User as UserIcon } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
 
 export function SiteHeader() {
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -17,6 +21,24 @@ export function SiteHeader() {
     });
     return () => sub.subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    function onClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
+
+  async function signOut() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    setOpen(false);
+    router.replace("/");
+    router.refresh();
+  }
+
+  const initial = (user?.email ?? "U")[0].toUpperCase();
 
   return (
     <header className="sticky top-0 z-40 border-b border-white/10 bg-[#0a0612]/70 backdrop-blur-xl">
@@ -40,6 +62,9 @@ export function SiteHeader() {
           <Link href="/" className="rounded-full px-3 py-1.5 text-white/70 hover:bg-white/5 hover:text-white">
             Home
           </Link>
+          <Link href="/multiplayer" className="hidden rounded-full px-3 py-1.5 text-white/70 hover:bg-white/5 hover:text-white sm:inline-block">
+            Multiplayer
+          </Link>
           <Link href="/about" className="hidden rounded-full px-3 py-1.5 text-white/70 hover:bg-white/5 hover:text-white sm:inline-block">
             About
           </Link>
@@ -47,17 +72,34 @@ export function SiteHeader() {
             Credits
           </Link>
           {user ? (
-            <Link
-              href="/profile"
-              className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/10 sm:text-sm"
-            >
-              <span className="grid size-6 place-items-center rounded-full bg-gradient-to-br from-orange-400 to-fuchsia-500 text-[10px] font-bold text-black">
-                {(user.email ?? "U")[0].toUpperCase()}
-              </span>
-              <span className="hidden max-w-[140px] truncate sm:inline">
-                {user.email}
-              </span>
-            </Link>
+            <div ref={menuRef} className="relative">
+              <button
+                onClick={() => setOpen((o) => !o)}
+                className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-2 py-1.5 text-xs font-semibold text-white hover:bg-white/10 sm:px-3 sm:text-sm"
+              >
+                <span className="grid size-6 place-items-center rounded-full bg-gradient-to-br from-orange-400 to-fuchsia-500 text-[10px] font-bold text-black">
+                  {initial}
+                </span>
+                <span className="hidden max-w-[140px] truncate sm:inline">{user.email}</span>
+              </button>
+              {open && (
+                <div className="absolute right-0 mt-2 w-48 overflow-hidden rounded-2xl border border-white/10 bg-[#13091f]/95 shadow-xl shadow-black/40 backdrop-blur-xl">
+                  <Link
+                    href="/profile"
+                    onClick={() => setOpen(false)}
+                    className="flex items-center gap-2 px-4 py-2.5 text-sm text-white/80 hover:bg-white/5 hover:text-white"
+                  >
+                    <UserIcon className="size-4" /> Profile
+                  </Link>
+                  <button
+                    onClick={signOut}
+                    className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-white/80 hover:bg-white/5 hover:text-white"
+                  >
+                    <LogOut className="size-4" /> Sign out
+                  </button>
+                </div>
+              )}
+            </div>
           ) : (
             <Link
               href="/login"
