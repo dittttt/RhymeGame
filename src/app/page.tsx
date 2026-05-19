@@ -25,7 +25,7 @@ import {
   type RhymeWord,
 } from "@/lib/game-data";
 import { defaultFilters, filterBeats, type BeatFilters } from "@/lib/beat-filtering";
-import { getBeatClock } from "@/lib/beat-clock";
+import { getBeatClock, secondsPerBeat } from "@/lib/beat-clock";
 import { buildYouTubeEmbedUrl } from "@/lib/youtube";
 
 type GameState = "setup" | "playing" | "paused";
@@ -166,7 +166,7 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-[#11061f] text-white">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(255,184,77,0.25),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(168,85,247,0.35),_transparent_34%)]" />
-      <section className="relative mx-auto flex min-h-screen w-full max-w-7xl flex-col px-5 py-8 sm:px-8">
+      <section className="relative mx-auto flex min-h-screen w-full max-w-7xl flex-col px-3 py-5 sm:px-8 sm:py-8">
         <nav className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="grid size-12 place-items-center rounded-2xl bg-orange-400 text-black shadow-lg shadow-orange-400/25">
@@ -275,7 +275,7 @@ function SetupPanel({
   onStart: () => void;
 }) {
   return (
-    <aside className="space-y-4 rounded-[2rem] border border-white/10 bg-white/[0.07] p-5 shadow-2xl shadow-black/30 backdrop-blur">
+    <aside className="space-y-4 rounded-[2rem] border border-white/10 bg-white/[0.07] p-4 shadow-2xl shadow-black/30 backdrop-blur sm:p-5">
       <div>
         <h1 className="text-3xl font-black leading-none">Setup the cypher</h1>
         <p className="mt-2 text-sm leading-6 text-slate-300">
@@ -397,28 +397,36 @@ function GameStage({ gameState, beat, mode, currentWord, nextWords, elapsedSecon
   const progress = Math.min(100, (elapsedSeconds / roundSeconds) * 100);
 
   return (
-    <section className="grid gap-5 rounded-[2rem] border border-white/10 bg-white/[0.06] p-5 shadow-2xl shadow-black/30 backdrop-blur xl:grid-cols-[1fr_360px]">
+    <section className="grid gap-5 rounded-[2rem] border border-white/10 bg-white/[0.06] p-4 shadow-2xl shadow-black/30 backdrop-blur sm:p-5 xl:grid-cols-[1fr_360px]">
       <div className="space-y-5">
         <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-black">
           <iframe className="aspect-video w-full" src={gameState === "setup" ? "" : embedUrl} title={beat.title} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen />
         </div>
 
-        <BouncingBeatBall beatInBar={clock.beatInBar} beatsPerBar={clock.beatsPerBar} beatProgress={clock.beatProgress} />
+        <BeatRoad
+          beatInBar={clock.beatInBar}
+          beatsPerBar={clock.beatsPerBar}
+          beatProgress={clock.beatProgress}
+          nextWords={nextWords}
+        />
 
         <div className="rounded-[2rem] bg-black/35 p-5">
-          <div className="mb-3 flex items-center justify-between text-sm text-slate-400">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-400">
             <span>{Math.ceil(Math.max(0, roundSeconds - elapsedSeconds))}s left</span>
             <span>Bar {clock.currentBar} · Beat {clock.beatInBar}/{clock.beatsPerBar}</span>
           </div>
           <div className="h-3 overflow-hidden rounded-full bg-white/10">
             <div className="h-full rounded-full bg-gradient-to-r from-orange-400 to-fuchsia-400" style={{ width: `${progress}%` }} />
           </div>
+          <p className="mt-3 text-xs leading-5 text-slate-500">
+            Sync note: the visual clock is anchored to the YouTube start offset ({beat.startSeconds}s), then advances at {beat.bpm} BPM ({secondsPerBeat(beat.bpm).toFixed(2)}s per beat). If a YouTube upload has silence before the first downbeat, adjust the beat start offset.
+          </p>
         </div>
 
         <div className="flex flex-wrap gap-3">
-          {gameState === "setup" ? <button onClick={onStart} className="primary-button w-auto"><Play className="size-5" /> Start cypher</button> : null}
-          <button onClick={onNextWord} className="secondary-button w-auto"><SkipForward className="size-4" /> Next word</button>
-          <button onClick={onReset} className="secondary-button w-auto"><RotateCcw className="size-4" /> Reset</button>
+          {gameState === "setup" ? <button onClick={onStart} className="primary-button w-full sm:w-auto"><Play className="size-5" /> Start cypher</button> : null}
+          <button onClick={onNextWord} className="secondary-button w-full sm:w-auto"><SkipForward className="size-4" /> Next word</button>
+          <button onClick={onReset} className="secondary-button w-full sm:w-auto"><RotateCcw className="size-4" /> Reset</button>
         </div>
       </div>
 
@@ -452,31 +460,55 @@ function GameStage({ gameState, beat, mode, currentWord, nextWords, elapsedSecon
   );
 }
 
-function BouncingBeatBall({ beatInBar, beatsPerBar, beatProgress }: { beatInBar: number; beatsPerBar: number; beatProgress: number }) {
-  const lanePercent = beatsPerBar <= 1 ? 50 : ((beatInBar - 1 + beatProgress) / (beatsPerBar - 1)) * 100;
-  const bounceY = Math.sin(beatProgress * Math.PI) * 48;
+function BeatRoad({ beatInBar, beatsPerBar, beatProgress, nextWords }: {
+  beatInBar: number;
+  beatsPerBar: number;
+  beatProgress: number;
+  nextWords: RhymeWord[];
+}) {
+  const clampedBeat = Math.min(Math.max(beatInBar, 1), beatsPerBar);
+  const lanePercent = beatsPerBar <= 1 ? 50 : ((clampedBeat - 1) / (beatsPerBar - 1)) * 100;
+  const bounceY = Math.sin(beatProgress * Math.PI) * 46;
 
   return (
-    <div className="rounded-[2rem] bg-black/35 p-5">
-      <div className="mb-3 flex items-center justify-between text-sm text-slate-400">
-        <span>Follow the bouncing beat</span>
-        <span>{beatsPerBar}/bar</span>
+    <div className="rounded-[2rem] bg-black/35 p-4 sm:p-5">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-400">
+        <span>Ball lands on each beat</span>
+        <span>{beatsPerBar}/bar · words arrive on beat {beatsPerBar}</span>
       </div>
-      <div className="relative h-32 overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-purple-950/80 to-black/40 px-6 pt-12">
-        <div className="absolute left-6 right-6 top-[4.6rem] h-1 rounded-full bg-white/10" />
+      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-purple-950/80 to-black/50 px-3 py-6 sm:px-6">
+        <div className="pointer-events-none absolute left-8 right-8 top-[5.85rem] h-1 rounded-full bg-white/10 sm:left-12 sm:right-12" />
         <div
-          className="absolute top-[4.15rem] size-7 rounded-full bg-orange-300 shadow-[0_0_35px_rgba(251,146,60,0.9)] transition-[left,transform] duration-75 ease-linear"
+          className="absolute top-[5.35rem] z-20 size-7 rounded-full bg-orange-300 shadow-[0_0_35px_rgba(251,146,60,0.9)] transition-[left,transform] duration-75 ease-linear sm:size-8"
           style={{
-            left: `calc(1.5rem + (${lanePercent}% * (100% - 3rem) / 100))`,
+            left: `calc(2rem + (${lanePercent}% * (100% - 4rem) / 100))`,
             transform: `translate(-50%, -${bounceY}px)`,
           }}
         />
-        <div className="relative flex justify-between">
-          {Array.from({ length: beatsPerBar }, (_, index) => (
-            <div key={index} className={`grid size-14 place-items-center rounded-2xl border text-lg font-black ${beatInBar === index + 1 ? "border-orange-300 bg-orange-300 text-black" : "border-white/10 bg-white/5 text-white/60"}`}>
-              {index + 1}
-            </div>
-          ))}
+        <div
+          className="grid gap-2"
+          style={{ gridTemplateColumns: `repeat(${beatsPerBar}, minmax(0, 1fr))` }}
+        >
+          {Array.from({ length: beatsPerBar }, (_, index) => {
+            const isActive = beatInBar === index + 1;
+            const queuedWord = index === beatsPerBar - 1 ? nextWords[0] : null;
+
+            return (
+              <div key={index} className="flex min-w-0 flex-col items-center gap-3 pt-8">
+                <div className={`grid size-14 place-items-center rounded-2xl border text-lg font-black transition-colors sm:size-16 ${isActive ? "border-orange-300 bg-orange-300 text-black" : "border-white/10 bg-white/5 text-white/60"}`}>
+                  {index + 1}
+                </div>
+                {queuedWord ? (
+                  <div className="w-full rounded-2xl border border-orange-300/30 bg-orange-300/15 px-2 py-2 text-center shadow-lg shadow-orange-950/30">
+                    <p className="text-[0.6rem] font-black uppercase tracking-widest text-orange-200">next word</p>
+                    <p className="truncate text-sm font-black text-white sm:text-base">{queuedWord.word}</p>
+                  </div>
+                ) : (
+                  <div className="h-[3.65rem] w-full rounded-2xl border border-white/5 bg-white/[0.03]" />
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

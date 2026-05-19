@@ -11,19 +11,29 @@ export function beatsPerBar(timeSignature: string): number {
 
 export function getBeatClock(beat: Beat, elapsedSeconds: number) {
   const beatLength = secondsPerBeat(beat.bpm);
-  const currentBeat = Math.floor(elapsedSeconds / beatLength) + 1;
+  const audioPositionSeconds = Math.max(0, beat.startSeconds + elapsedSeconds);
+  const absoluteBeat = Math.floor(audioPositionSeconds / beatLength) + 1;
   const perBar = beatsPerBar(beat.timeSignature);
-  const currentBar = Math.floor((currentBeat - 1) / perBar) + 1;
-  const beatInBar = ((currentBeat - 1) % perBar) + 1;
-  const beatProgress = (elapsedSeconds % beatLength) / beatLength;
+  const currentBar = Math.floor((absoluteBeat - 1) / perBar) + 1;
+  const beatInBar = ((absoluteBeat - 1) % perBar) + 1;
+  const beatProgress = (audioPositionSeconds % beatLength) / beatLength;
 
   return {
-    currentBeat,
+    currentBeat: absoluteBeat,
+    absoluteBeat,
     currentBar,
     beatInBar,
     beatsPerBar: perBar,
     beatProgress,
+    audioPositionSeconds,
+    beatLength,
   };
+}
+
+export function secondsUntilNextBeat(beat: Beat, elapsedSeconds: number): number {
+  const { beatLength, beatProgress } = getBeatClock(beat, elapsedSeconds);
+  if (beatProgress === 0) return 0;
+  return beatLength * (1 - beatProgress);
 }
 
 export function shouldAdvanceWord(
