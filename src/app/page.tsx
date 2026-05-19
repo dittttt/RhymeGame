@@ -1028,7 +1028,7 @@ function RhymeLadder({
             return (
               <div
                 key={`${absBar}-${w.id}`}
-                className="relative"
+                className="relative overflow-hidden"
                 style={{
                   opacity: isActiveRow ? 1 : Math.max(0.2, 0.55 - rowIdx * 0.07),
                   transformOrigin: "center top",
