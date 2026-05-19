@@ -233,10 +233,22 @@ export function useYouTubePlayer({
     return () => cancelAnimationFrame(raf);
   }, []);
 
+  const getCurrentTimeNow = useCallback(() => {
+    const p = playerRef.current;
+    if (!p) return 0;
+    if (status !== "playing") {
+      try { return p.getCurrentTime() + offsetRef.current; } catch { return 0; }
+    }
+    const interpolated =
+      anchorYTRef.current + (performance.now() - anchorWallRef.current) / 1000;
+    return interpolated + offsetRef.current;
+  }, [status]);
+
   return {
     containerRef,
     status,
     currentTime,
+    getCurrentTimeNow,
     play,
     pause,
     seekTo,

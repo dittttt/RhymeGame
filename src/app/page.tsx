@@ -31,8 +31,10 @@ import {
   filterBeats,
   type BeatFilters,
 } from "@/lib/beat-filtering";
-import { getBeatClock, secondsPerBeat } from "@/lib/beat-clock";
+import { getBeatClock, secondsPerBeat, VISIBLE_BARS } from "@/lib/beat-clock";
 import { useYouTubePlayer } from "@/lib/use-youtube-player";
+import { WORDLISTS, type WordlistId, getWordlist } from "@/lib/wordlists";
+import { RHYME_PATTERNS, type RhymePattern } from "@/lib/rhyme-patterns";
 
 const RAP_GENRE_CHIPS: { label: string; query: string }[] = [
   { label: "Trap", query: "trap type beat 140 bpm 4/4" },
@@ -82,6 +84,8 @@ export default function Home() {
     useState<RhymeWord["difficulty"]>("beginner");
   const [roundSeconds, setRoundSeconds] = useState(defaultRoundSeconds);
   const [numPlayers, setNumPlayers] = useState<number>(2);
+  const [wordlistId, setWordlistId] = useState<WordlistId>("basic");
+  const [rhymePattern, setRhymePattern] = useState<RhymePattern>("AABB");
   const [youtubeQuery, setYoutubeQuery] = useState(
     "boom bap freestyle type beat",
   );
@@ -186,6 +190,8 @@ export default function Home() {
               difficulty={difficulty}
               roundSeconds={roundSeconds}
               numPlayers={numPlayers}
+              wordlistId={wordlistId}
+              rhymePattern={rhymePattern}
               youtubeQuery={youtubeQuery}
               youtubeResults={youtubeResults}
               searchStatus={searchStatus}
@@ -197,6 +203,8 @@ export default function Home() {
               onDifficultyChange={setDifficulty}
               onRoundSecondsChange={setRoundSeconds}
               onNumPlayersChange={setNumPlayers}
+              onWordlistChange={setWordlistId}
+              onRhymePatternChange={setRhymePattern}
               onYoutubeQueryChange={setYoutubeQuery}
               onSearchYouTube={searchYouTube}
               onSelectYouTubeResult={selectYouTubeResult}
@@ -209,6 +217,8 @@ export default function Home() {
               difficulty={difficulty}
               roundSeconds={roundSeconds}
               numPlayers={numPlayers}
+              wordlistId={wordlistId}
+              rhymePattern={rhymePattern}
               onExit={() => setStage("picker")}
             />
           ) : null}
@@ -294,6 +304,8 @@ function BeatPickerScreen(props: {
   difficulty: RhymeWord["difficulty"];
   roundSeconds: number;
   numPlayers: number;
+  wordlistId: WordlistId;
+  rhymePattern: RhymePattern;
   youtubeQuery: string;
   youtubeResults: SearchResult[];
   searchStatus: string;
@@ -308,6 +320,8 @@ function BeatPickerScreen(props: {
   onDifficultyChange: (difficulty: RhymeWord["difficulty"]) => void;
   onRoundSecondsChange: (seconds: number) => void;
   onNumPlayersChange: (n: number) => void;
+  onWordlistChange: (id: WordlistId) => void;
+  onRhymePatternChange: (p: RhymePattern) => void;
   onYoutubeQueryChange: (query: string) => void;
   onSearchYouTube: (overrideQuery?: string) => void;
   onSelectYouTubeResult: (result: SearchResult) => void;
@@ -323,6 +337,8 @@ function BeatPickerScreen(props: {
     difficulty,
     roundSeconds,
     numPlayers,
+    wordlistId,
+    rhymePattern,
     youtubeQuery,
     youtubeResults,
     searchStatus,
@@ -334,6 +350,8 @@ function BeatPickerScreen(props: {
     onDifficultyChange,
     onRoundSecondsChange,
     onNumPlayersChange,
+    onWordlistChange,
+    onRhymePatternChange,
     onYoutubeQueryChange,
     onSearchYouTube,
     onSelectYouTubeResult,
@@ -634,6 +652,36 @@ function BeatPickerScreen(props: {
                 <option value="advanced">Advanced</option>
               </select>
             </Field>
+            <Field label="Wordlist">
+              <select
+                className="input"
+                value={wordlistId}
+                onChange={(e) =>
+                  onWordlistChange(e.target.value as WordlistId)
+                }
+              >
+                {WORDLISTS.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Rhyme pattern">
+              <select
+                className="input"
+                value={rhymePattern}
+                onChange={(e) =>
+                  onRhymePatternChange(e.target.value as RhymePattern)
+                }
+              >
+                {RHYME_PATTERNS.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            </Field>
           </div>
           <p className="mt-3 text-xs leading-5 text-white/50">
             {mode.description}
@@ -694,6 +742,8 @@ function GameScreen({
   difficulty,
   roundSeconds,
   numPlayers,
+  wordlistId,
+  rhymePattern,
   onExit,
 }: {
   beat: Beat;
@@ -701,6 +751,8 @@ function GameScreen({
   difficulty: RhymeWord["difficulty"];
   roundSeconds: number;
   numPlayers: number;
+  wordlistId: WordlistId;
+  rhymePattern: RhymePattern;
   onExit: () => void;
 }) {
   const [wordIndex, setWordIndex] = useState(0);
@@ -753,42 +805,70 @@ function GameScreen({
     ? PREROLL_BARS - (clock.currentBar - 1)
     : 0;
 
-  // Pool of words allowed at this difficulty.
+  // Pool of words allowed at this difficulty, optionally narrowed by the
+  // selected wordlist (we intersect by spelling; if the intersection is empty
+  // we fall back to the full difficulty pool so the round still plays).
   const poolForDifficulty = useMemo(() => {
-    if (difficulty === "advanced") return rhymeWords;
-    if (difficulty === "intermediate")
-      return rhymeWords.filter(
-        (w) => w.difficulty === "beginner" || w.difficulty === "intermediate",
-      );
-    return rhymeWords.filter((w) => w.difficulty === "beginner");
-  }, [difficulty]);
+    const base =
+      difficulty === "advanced"
+        ? rhymeWords
+        : difficulty === "intermediate"
+          ? rhymeWords.filter(
+              (w) =>
+                w.difficulty === "beginner" ||
+                w.difficulty === "intermediate",
+            )
+          : rhymeWords.filter((w) => w.difficulty === "beginner");
+    const wl = new Set(
+      getWordlist(wordlistId).words.map((w) => w.toLowerCase()),
+    );
+    const narrowed = base.filter((w) => wl.has(w.word.toLowerCase()));
+    return narrowed.length >= 4 ? narrowed : base;
+  }, [difficulty, wordlistId]);
 
   const [shuffleSeed, setShuffleSeed] = useState(0);
-  // Queue of WORDS, one per bar.
-  // Rule: rhyme grouping advances every 2 bars (beginner/intermediate),
-  // every 4 bars (advanced). Same rhyme group → same color → consecutive bars.
-  const groupSpan = difficulty === "advanced" ? 4 : 2;
+  // Queue of WORDS, one per bar, built from the chosen rhyme pattern.
+  // Each letter in the pattern picks a fresh rhyme group; identical letters
+  // reuse the same group, so AABB → group X X Y Y, ABAB → X Y X Y, etc.
+  const patternLetters = useMemo(
+    () =>
+      rhymePattern === "Freeform"
+        ? ["A", "B", "C", "D"]
+        : rhymePattern.split(""),
+    [rhymePattern],
+  );
   const queue = useMemo(() => {
-    const groups = Array.from(
-      new Set(poolForDifficulty.map((w) => w.rhymeGroup)),
+    const allGroups = shuffle(
+      Array.from(new Set(poolForDifficulty.map((w) => w.rhymeGroup))),
     );
-    const shuffledGroups = shuffle(groups);
+    if (allGroups.length === 0) return shuffle(poolForDifficulty);
     const out: RhymeWord[] = [];
-    for (const g of shuffledGroups) {
-      const inGroup = shuffle(
-        poolForDifficulty.filter((w) => w.rhymeGroup === g),
-      );
-      if (!inGroup.length) continue;
-      for (let i = 0; i < groupSpan; i++) {
-        out.push(inGroup[i % inGroup.length]);
+    const cycles = difficulty === "advanced" ? 4 : 2; // total bars per cycle multiplier
+    for (let c = 0; c < cycles; c++) {
+      const letterToGroup = new Map<string, string>();
+      let cursor = (c * patternLetters.length) % allGroups.length;
+      for (const letter of patternLetters) {
+        if (!letterToGroup.has(letter)) {
+          letterToGroup.set(letter, allGroups[cursor % allGroups.length]);
+          cursor++;
+        }
+        const g = letterToGroup.get(letter)!;
+        const inGroup = poolForDifficulty.filter((w) => w.rhymeGroup === g);
+        const pick = inGroup[Math.floor(Math.random() * inGroup.length)];
+        if (pick) out.push(pick);
       }
     }
     return out.length ? out : shuffle(poolForDifficulty);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [poolForDifficulty, groupSpan, shuffleSeed, beat.youtubeVideoId]);
+  }, [poolForDifficulty, patternLetters, difficulty, shuffleSeed, beat.youtubeVideoId]);
+
+  // Coloring stride: how many adjacent bars share a color. AABB=2, AAAA=4,
+  // everything else (ABAB / ABBA / Freeform) = 1 so colors alternate per bar.
+  const groupSpan =
+    rhymePattern === "AAAA" ? 4 : rhymePattern === "AABB" ? 2 : 1;
 
   // 4 visible bars (matches the real app). Active row = top.
-  const VISIBLE_ROWS = 4;
+  const VISIBLE_ROWS = VISIBLE_BARS;
   const barOffset = inPreroll ? 0 : Math.max(0, liveBar - 1);
   const displayedIndex = wordIndex + barOffset;
   const safeQueue = queue.length ? queue : rhymeWords;
@@ -887,6 +967,9 @@ function GameScreen({
               countdown={countdownNumber}
               difficulty={difficulty}
               groupSpan={groupSpan}
+              getCurrentTimeNow={player.getCurrentTimeNow}
+              beat={beat}
+              startSeconds={beat.startSeconds ?? 0}
             />
           </div>
         </div>
@@ -1026,6 +1109,8 @@ function RhymeLadder({
   countdown,
   difficulty,
   groupSpan,
+  getCurrentTimeNow,
+  beat,
 }: {
   rows: RhymeWord[];
   beatInBar: number;
@@ -1035,68 +1120,98 @@ function RhymeLadder({
   countdown: number;
   difficulty: RhymeWord["difficulty"];
   groupSpan: number;
+  getCurrentTimeNow: () => number;
+  beat: Beat;
+  startSeconds: number;
 }) {
-  // Ball traverses the active (top) row left → right, one cell per beat.
-  // beatInBar is 1..4. Continuous position: (beatInBar - 1) + beatProgress.
-  const continuousBeat = Math.max(
-    0,
-    Math.min(4, beatInBar - 1 + beatProgress),
-  );
-  // Map [0..4] across the 4 cells (centers at 12.5%, 37.5%, 62.5%, 87.5%).
-  const ballLeftPct = (continuousBeat / 4) * 100;
-  // Parabolic hop *between* beats: rises and falls each beat (like a bounce).
-  const hopProgress = beatProgress; // 0..1 within current beat
-  const hop = isPlaying ? Math.sin(hopProgress * Math.PI) : 0;
-  const hopHeight = 56; // px arc height above the bar
-  const ballY = -hop * hopHeight;
-  // Squash on landing (start/end of each beat).
-  const flatness = 1 - hop; // 1 = touching bar, 0 = peak
-  const scaleX = 1 + flatness * 0.25;
-  const scaleY = 1 - flatness * 0.18;
+  // Drive the ball + bar slide imperatively via rAF so it stays smooth even
+  // when React state updates lag (YT iframe getCurrentTime ticks every ~250ms
+  // on mobile). We read the wallclock-interpolated time directly each frame.
+  const ballRef = useRef<HTMLDivElement | null>(null);
+  const stackRef = useRef<HTMLDivElement | null>(null);
+  const beatsPerBar = 4;
+  const secPerBeat = 60 / Math.max(1, beat.bpm);
+  const secPerBar = secPerBeat * beatsPerBar;
+  const palette0 = rowColor(barOffset, groupSpan);
+
+  useEffect(() => {
+    if (!isPlaying) {
+      // Reset to start when not playing.
+      if (ballRef.current) {
+        ballRef.current.style.transform = `translate3d(0px, -100%, 0) scale(1,1)`;
+      }
+      if (stackRef.current) {
+        stackRef.current.style.transform = `translate3d(0,0,0)`;
+      }
+      return;
+    }
+    let raf = 0;
+    const loop = () => {
+      const ball = ballRef.current;
+      const stack = stackRef.current;
+      if (ball && stack) {
+        const t = getCurrentTimeNow();
+        const elapsed = Math.max(0, t - (beat.startSeconds ?? 0));
+        // Continuous beat position in current bar, 0..beatsPerBar
+        const beatPosInBar = (elapsed / secPerBeat) % beatsPerBar;
+        const ballPct = (beatPosInBar / beatsPerBar) * 100;
+        // Hop arc within current beat
+        const phaseInBeat = beatPosInBar - Math.floor(beatPosInBar); // 0..1
+        const hop = Math.sin(phaseInBeat * Math.PI);
+        const hopHeight = 56;
+        const ballY = -hop * hopHeight;
+        const flatness = 1 - hop;
+        const scaleX = 1 + flatness * 0.25;
+        const scaleY = 1 - flatness * 0.18;
+        // Use parent width to convert pct → px so transform stays GPU-friendly.
+        const parentW = ball.parentElement?.offsetWidth ?? 0;
+        const x = (ballPct / 100) * parentW - 16; // 16 = half ball
+        ball.style.transform = `translate3d(${x}px, calc(-100% + ${ballY}px), 0) scale(${scaleX}, ${scaleY})`;
+
+        // Bar slide: smooth scroll-up so next row eases into active position
+        // during the last beat of each bar (subtle, 8px max).
+        const barProgress = (elapsed % secPerBar) / secPerBar; // 0..1
+        const slidePx = barProgress * -4; // gentle parallax
+        stack.style.transform = `translate3d(0, ${slidePx}px, 0)`;
+      }
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [isPlaying, getCurrentTimeNow, beat.bpm, beat.startSeconds, secPerBar, secPerBeat]);
 
   // Pop the LANDED cell when ball touches down (start of each beat).
+  // We still use React state for the cell-pop highlight since it's coarse.
   const justLanded = beatProgress < 0.18;
 
   return (
     <div className="relative flex flex-1 flex-col">
       {/* Stack: top row is the active bar; rows below scroll down into view. */}
-      <div className="relative flex-1">
-        <div
-          className="flex flex-col gap-3"
-          style={{
-            // Scroll the whole stack DOWN as bars advance, so the next row
-            // slides into the active position rather than snapping.
-            transform: `translateY(${beatProgress * -0}px)`,
-          }}
-        >
+      <div className="relative flex-1 overflow-hidden">
+        <div ref={stackRef} className="flex flex-col gap-3" style={{ willChange: "transform" }}>
           {rows.map((w, rowIdx) => {
             const isActiveRow = rowIdx === 0;
             const absBar = barOffset + rowIdx;
             const palette = rowColor(absBar, groupSpan);
 
-            // Word-visibility rule, driven by difficulty + position within group:
-            //  Beginner    -> word visible on BOTH bars of the pair.
-            //  Intermediate-> word visible only on bar 2 of the pair (bar 1 = ???).
-            //  Advanced    -> word visible only on bar 4 of the quad (bars 1-3 = ???).
-            const posInGroup = absBar % groupSpan; // 0..groupSpan-1
+            const posInGroup = absBar % groupSpan;
             const wordVisible =
               difficulty === "beginner"
                 ? true
                 : difficulty === "intermediate"
-                  ? posInGroup === 1
-                  : posInGroup === 3; // advanced
+                  ? posInGroup === Math.max(0, groupSpan - 1)
+                  : posInGroup === Math.max(0, groupSpan - 1);
 
             return (
               <div
                 key={`${absBar}-${w.id}`}
                 className="relative"
                 style={{
-                  opacity: isActiveRow ? 1 : 0.55 - rowIdx * 0.07,
+                  opacity: isActiveRow ? 1 : Math.max(0.2, 0.55 - rowIdx * 0.07),
                   transformOrigin: "center top",
                   transition: "opacity 220ms ease-out",
                 }}
               >
-                {/* Bar with 4 cells; cell 4 = target rhyme word (or ??? when hidden) */}
                 <div className="grid grid-cols-4 gap-2 sm:gap-3">
                   {[0, 1, 2, 3].map((col) => {
                     const isWordCell = col === 3;
@@ -1131,16 +1246,14 @@ function RhymeLadder({
                   })}
                 </div>
 
-                {/* Bouncing ball — ONLY on the active row, ABOVE the bar */}
-                {isActiveRow && isPlaying ? (
+                {/* Bouncing ball — ONLY on the active row, driven imperatively */}
+                {isActiveRow ? (
                   <div
-                    className={`pointer-events-none absolute left-0 top-0 size-7 rounded-full sm:size-8 ${palette.ball} ${palette.glow}`}
+                    ref={ballRef}
+                    className={`pointer-events-none absolute left-0 top-0 size-7 rounded-full sm:size-8 ${palette0.ball} ${palette0.glow}`}
                     style={{
-                      left: `calc(${ballLeftPct}% - 1rem)`,
-                      transform: `translateY(calc(-100% + ${ballY}px)) scale(${scaleX}, ${scaleY})`,
-                      transition:
-                        "left 90ms linear, background-color 200ms ease",
-                      willChange: "transform, left",
+                      willChange: "transform",
+                      visibility: isPlaying ? "visible" : "hidden",
                     }}
                   />
                 ) : null}
