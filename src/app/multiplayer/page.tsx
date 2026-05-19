@@ -1,6 +1,5 @@
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { Trophy, Users, Eye } from "lucide-react";
+import { ModeCard } from "./ModeCard";
 
 export default async function MultiplayerPage() {
   const supabase = await createClient();
@@ -18,26 +17,26 @@ export default async function MultiplayerPage() {
     elo = data?.elo ?? null;
   }
 
-  const cards = [
+  const cards: Array<React.ComponentProps<typeof ModeCard>> = [
     {
       mode: "casual",
       title: "Casual",
       desc: "Friendly battles. Win or lose, your elo's safe.",
-      icon: <Users className="size-7" />,
+      iconEmoji: "👥",
       accent: "from-emerald-400/30 to-emerald-500/10",
     },
     {
       mode: "ranked",
       title: "Ranked",
       desc: "Stakes are real. Climb the ladder.",
-      icon: <Trophy className="size-7" />,
+      iconEmoji: "🏆",
       accent: "from-fuchsia-500/30 to-fuchsia-600/10",
     },
     {
       mode: "spectate",
       title: "Spectate",
       desc: "Drop into a live cypher. Watch + vote.",
-      icon: <Eye className="size-7" />,
+      iconEmoji: "👁",
       accent: "from-sky-400/30 to-sky-500/10",
     },
   ];
@@ -61,18 +60,7 @@ export default async function MultiplayerPage() {
 
       <div className="mt-10 grid gap-5 sm:grid-cols-3">
         {cards.map((c) => (
-          <Link
-            key={c.mode}
-            href={`/lobby/new?mode=${c.mode}`}
-            className={`group relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br ${c.accent} p-6 transition hover:border-white/20`}
-          >
-            <div className="grid size-14 place-items-center rounded-2xl bg-white/10">{c.icon}</div>
-            <h2 className="mt-5 font-display text-2xl font-bold">{c.title}</h2>
-            <p className="mt-2 text-sm text-white/65">{c.desc}</p>
-            <span className="mt-4 inline-block rounded-full bg-white/10 px-2.5 py-0.5 text-[10px] uppercase tracking-wider text-white/55">
-              Coming Phase 4
-            </span>
-          </Link>
+          <ModeCard key={c.mode} {...c} />
         ))}
       </div>
     </main>
