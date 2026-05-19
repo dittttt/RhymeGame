@@ -776,14 +776,14 @@ function GameScreen({
               rows={visibleWords}
               beatInBar={clock.beatInBar}
               beatProgress={clock.beatProgress}
-              isPlaying={player.isPlaying && !inPreroll}
+              isPlaying={player.isPlaying}
               barOffset={barOffset}
               countdown={countdownNumber}
               difficulty={difficulty}
               groupSpan={groupSpan}
               getCurrentTimeNow={player.getCurrentTimeNow}
               beat={beat}
-              startSeconds={beat.startSeconds ?? 0}
+              startSeconds={originRef.current ?? beat.startSeconds ?? 0}
             />
           </div>
         </div>
@@ -815,12 +815,19 @@ function GameScreen({
               <RotateCcw className="size-4" /> Reset
             </button>
           </div>
+        </div>
+      </div>
 
-          <div className="flex items-center gap-3 text-xs text-white/55">
-            <span className="font-mono text-base font-semibold text-white">
+      {/* RIGHT: PLAYBACK + SYNC + INFO (mobile: appears below stage) */}
+      <aside className="space-y-4 xl:order-3">
+        <div className="glass rounded-2xl p-4 sm:rounded-[2rem] sm:p-5">
+          <p className="font-display text-sm font-semibold">Playback</p>
+          <p className="text-xs text-white/50">Time remaining in this round.</p>
+          <div className="mt-3 flex items-center gap-3">
+            <span className="font-mono text-2xl font-semibold text-white tabular-nums">
               {fmtTime(timeLeft)}
             </span>
-            <div className="hidden h-1.5 w-48 overflow-hidden rounded-full bg-white/10 sm:block">
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
               <div
                 className="h-full rounded-full bg-gradient-to-r from-orange-400 to-fuchsia-400 transition-[width] duration-100 ease-linear"
                 style={{ width: `${progress}%` }}
@@ -828,10 +835,7 @@ function GameScreen({
             </div>
           </div>
         </div>
-      </div>
 
-      {/* RIGHT: SYNC + INFO (mobile: appears below stage) */}
-      <aside className="space-y-4 xl:order-3">
         <div className="glass rounded-2xl p-4 sm:rounded-[2rem] sm:p-5">
           <p className="font-display text-sm font-semibold">Sync nudge</p>
           <p className="text-xs text-white/50">
@@ -925,6 +929,7 @@ function RhymeLadder({
   groupSpan,
   getCurrentTimeNow,
   beat,
+  startSeconds,
 }: {
   rows: RhymeWord[];
   beatInBar: number;
@@ -965,10 +970,12 @@ function RhymeLadder({
       const stack = stackRef.current;
       if (ball && stack) {
         const t = getCurrentTimeNow();
-        const elapsed = Math.max(0, t - (beat.startSeconds ?? 0));
+        const elapsed = Math.max(0, t - (startSeconds ?? 0));
         // Continuous beat position in current bar, 0..beatsPerBar
         const beatPosInBar = (elapsed / secPerBeat) % beatsPerBar;
-        const ballPct = (beatPosInBar / beatsPerBar) * 100;
+        // Map beat → CENTER of its cell (4 cells, centers at 12.5/37.5/62.5/87.5%).
+        // 25% per beat; wraps modulo 100 at the bar boundary.
+        const ballPct = (12.5 + beatPosInBar * 25) % 100;
         // Hop arc within current beat
         const phaseInBeat = beatPosInBar - Math.floor(beatPosInBar); // 0..1
         const hop = Math.sin(phaseInBeat * Math.PI);
@@ -979,7 +986,8 @@ function RhymeLadder({
         const scaleY = 1 - flatness * 0.18;
         // Use parent width to convert pct → px so transform stays GPU-friendly.
         const parentW = ball.parentElement?.offsetWidth ?? 0;
-        const x = (ballPct / 100) * parentW - 16; // 16 = half ball
+        const ballHalf = ball.offsetWidth / 2;
+        const x = (ballPct / 100) * parentW - ballHalf;
         ball.style.transform = `translate3d(${x}px, calc(-100% + ${ballY}px), 0) scale(${scaleX}, ${scaleY})`;
 
         // Bar slide: smooth scroll-up so next row eases into active position
@@ -992,7 +1000,7 @@ function RhymeLadder({
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [isPlaying, getCurrentTimeNow, beat.bpm, beat.startSeconds, secPerBar, secPerBeat]);
+  }, [isPlaying, getCurrentTimeNow, beat.bpm, startSeconds, secPerBar, secPerBeat]);
 
   // Pop the LANDED cell when ball touches down (start of each beat).
   // We still use React state for the cell-pop highlight since it's coarse.
@@ -1039,8 +1047,8 @@ function RhymeLadder({
                       return (
                         <div
                           key={col}
-                          className={`flex h-14 items-center justify-center rounded-xl px-2 text-center font-display text-base font-bold shadow-[0_4px_0_rgba(0,0,0,0.35)] sm:h-16 sm:text-lg ${palette.bar} ${
-                            isActiveRow ? "ring-2 ring-white/70" : ""
+                          className={`flex h-14 items-center justify-center overflow-hidden rounded-xl px-2 text-center font-display text-base font-bold shadow-[0_4px_0_rgba(0,0,0,0.35)] sm:h-16 sm:text-lg ${palette.bar} ${
+                            isActiveRow ? "ring-2 ring-inset ring-white/70" : ""
                           } ${cellLanded ? "cell-pop" : ""}`}
                         >
                           {wordVisible ? w.word : "?"}
