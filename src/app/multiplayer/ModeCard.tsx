@@ -24,7 +24,7 @@ export function ModeCard({
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/lobbies/create", {
+      const res = await fetch("/beta/api/lobbies/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mode, visibility: "public" }),
