@@ -43,9 +43,11 @@ export async function middleware(request: NextRequest) {
     ) && !path.startsWith("/profile/");
 
   if (needsAuth && !user) {
-    const loginUrl = new URL("/beta/login", request.url);
-    // Store bare path (no basePath) — login + callback re-add /beta as needed.
-    loginUrl.searchParams.set("next", path);
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? request.url;
+    const loginUrl = new URL("/beta/login", siteUrl);
+    // Preserve full path including /beta basePath (middleware strips it from nextUrl.pathname).
+    const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "/beta";
+    loginUrl.searchParams.set("next", `${basePath}${path}`);
     return NextResponse.redirect(loginUrl);
   }
 

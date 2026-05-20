@@ -13,9 +13,10 @@ export async function GET(request: NextRequest) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      // Relative redirect — preserves the host the user came in on (rhymegame.vercel.app vs the branch alias).
-      return NextResponse.redirect(new URL(target, request.url));
+      const base = process.env.NEXT_PUBLIC_SITE_URL ?? request.url;
+      return NextResponse.redirect(new URL(target, base));
     }
   }
-  return NextResponse.redirect(new URL("/beta/login?error=oauth_failed", request.url));
+  const base = process.env.NEXT_PUBLIC_SITE_URL ?? request.url;
+  return NextResponse.redirect(new URL("/beta/login?error=oauth_failed", base));
 }
